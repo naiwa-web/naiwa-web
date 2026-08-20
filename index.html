@@ -455,10 +455,21 @@ body.glass-experimental .pill-btn {
 </div>
 
 <script>
+// 检测是否为移动端
+function isMobileDevice() {
+  // 优先使用指针类型检测（更可靠）
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+    return true;
+  }
+  // 后备：通过 User Agent 判断
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 let autoFullscreenDone = false;
 function tryEnterFullscreen() {
-  if (autoFullscreenDone) return;
+  if (autoFullscreenDone || !isMobileDevice()) return; // 仅移动端执行
   autoFullscreenDone = true;
+
   const el = document.documentElement;
   if (el.requestFullscreen) {
     el.requestFullscreen().catch(() => {});
@@ -470,6 +481,10 @@ function tryEnterFullscreen() {
     el.msRequestFullscreen();
   }
 }
+
+// 首次触摸或点击时触发（必须在用户手势中）
+document.addEventListener('touchstart', tryEnterFullscreen, { once: true, passive: true });
+document.addEventListener('click', tryEnterFullscreen, { once: true });
 document.addEventListener('touchstart', tryEnterFullscreen, { once: true, passive: true });
 document.addEventListener('click', tryEnterFullscreen, { once: true });
 // ==================== 液态玻璃工具函数 ====================
