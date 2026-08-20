@@ -463,7 +463,7 @@ body.glass-experimental .pill-btn span {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.2</i>
+      <i>v0.3.2b2</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -1844,20 +1844,36 @@ function updateCountDown() {
 updateCountDown();
 
 
-// ===== 按钮震动反馈（仅移动端有效） =====
-function vibrateOnTap(pattern = 10) {
-  if (navigator.vibrate) {
-    navigator.vibrate(pattern);
+// ===== 按钮震动反馈（增强版） =====
+function vibrate(pattern) {
+  if (!navigator.vibrate) {
+    console.warn('[震动] 当前浏览器不支持 navigator.vibrate');
+    return false;
+  }
+  try {
+    return navigator.vibrate(pattern);
+  } catch (e) {
+    console.error('[震动] 调用失败:', e);
+    return false;
   }
 }
 
-// 为底部所有按钮添加 touchstart 震动
-const vibrateButtons = document.querySelectorAll('.circle-btn, .pill-btn, .setting-btn, #btnStopRewind');
-vibrateButtons.forEach(btn => {
-  btn.addEventListener('touchstart', function() {
-    vibrateOnTap(10); // 震动 10 毫秒
+function vibrateOnTap() {
+  // 短促震动，兼容多种模式
+  vibrate(12);
+}
+
+// 绑定 touchstart 和 click（避免部分设备 touchstart 不触发用户激活）
+function addVibrateListener(btn) {
+  btn.addEventListener('touchstart', function(e) {
+    // 防止重复触发 click 时震动两次（click 会在 touchend 后触发，我们只在 touchstart 震动）
+    vibrateOnTap();
   }, { passive: true });
-});
+}
+
+// 为所有底部按钮添加
+const vibrateButtons = document.querySelectorAll('.circle-btn, .pill-btn, .setting-btn, #btnStopRewind');
+vibrateButtons.forEach(addVibrateListener);
 </script>
 </body>
 </html>
