@@ -124,11 +124,12 @@ body{
 
 /* 卡包弹窗 - 使用 opacity 过渡 + 面板滑动 */
 .modal-backdrop{
-  position:absolute; inset:0;
-  background:rgba(0,0,0,.35);
-  z-index:99;
-  opacity:0;
-  visibility:hidden;
+  position: fixed;          /* 改为 fixed，覆盖整个视口 */
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 99;
+  opacity: 0;
+  visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 .modal-backdrop.show{
@@ -339,7 +340,7 @@ body.glass-experimental .pill-btn span {
 </head>
 <body>
 <div id="viewport-container">
-  <video id="mainVideo" class="mode-cover" src="a1-glimpse.mp4" playsinline></video>
+  <video id="mainVideo" class="mode-cover" src="a1-glimpse.mp4" loop playsinline></video>
   <!-- 新增倒放专用视频（默认隐藏） -->
   <video id="reverseVideo" class="mode-cover" style="display:none;" loop playsinline></video>
   <div class="bottom-ui" id="bottomUi">
@@ -356,11 +357,11 @@ body.glass-experimental .pill-btn span {
 </div>
 
   <!-- 卡包弹窗（完整内容） -->
-  <div class="modal-backdrop" id="cardModal">
+<div class="modal-backdrop" id="cardModal">
     <div class="cardpack-sheet">
       <div class="sheet-header">
-        <div class="score-badge">😂 0</div>
-        <div class="event-tag">🤔 沉思纪 · 剩0天</div>
+        <div class="score-badge">😂 10</div>
+        <div class="event-tag">沉思纪+追忆纪 · 剩<span id="day-num">0</span>天</div>
         <button class="close-x" id="closeCard">✕</button>
       </div>
       <div class="card-content">
@@ -372,7 +373,7 @@ body.glass-experimental .pill-btn span {
   </div>
   <div class="card-item" data-video="a2-turtle.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">嘘</div>
+    <div class="card-name-bar">龟速前进</div>
   </div>
   <div class="card-item" data-video="a3-angel.mp4">
     <div class="card-thumb"></div>
@@ -380,19 +381,19 @@ body.glass-experimental .pill-btn span {
   </div>
   <div class="card-item" data-video="a4-meditation.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">龟速前进</div>
+    <div class="card-name-bar">嘘</div>
   </div>
   <div class="card-item" data-video="a5-flexible.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">软骨功</div>
+    <div class="card-name-bar">收放自如</div>
   </div>
   <div class="card-item" data-video="a6-pass.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">递过</div>
+    <div class="card-name-bar">路过</div>
   </div>
   <div class="card-item" data-video="a7-pet.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">摸摸头</div>
+    <div class="card-name-bar">宠物</div>
   </div>
   <div class="card-item" data-video="a8-taiji.mp4">
     <div class="card-thumb"></div>
@@ -419,18 +420,18 @@ body.glass-experimental .pill-btn span {
   </div>
   <div class="card-item" data-video="b5-legend.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">传奇</div>
+    <div class="card-name-bar">传说</div>
   </div>
   <div class="card-item" data-video="b6-born.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">诞生</div>
+    <div class="card-name-bar">神圣</div>
   </div>
   <div class="card-item" data-video="b7-arrive.mp4">
     <div class="card-thumb"></div>
-    <div class="card-name-bar">到达</div>
+    <div class="card-name-bar">降临</div>
   </div>
 </div>
-        <div class="cat-title">陪伴</div>
+        <div class="cat-title">循环视频<i><a href="javascript:;">(无倒放)</a></i></div>
         <div class="card-grid">
   <div class="card-item" data-video="c1-rain.mp4">
     <div class="card-thumb"></div>
@@ -462,7 +463,7 @@ body.glass-experimental .pill-btn span {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.0</i>
+      <i>v0.3.1</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -594,8 +595,8 @@ body.glass-experimental .pill-btn span {
           </i>
       </div>
       <div>
-        <i>*视频资源提取自奶蛙APP
-             <a href="https://apps.apple.com/cn/app/%E5%A5%B6%E8%9B%99-%E7%82%B9%E4%B8%80%E4%B8%8B%E5%B0%B1%E7%8B%82%E7%AC%91%E6%8A%BD%E8%B1%A1%E9%AD%94%E6%80%A7/id6761310915">原APP</a>
+        <i>*视频资源提取自
+             <a href="https://apps.apple.com/cn/app/%E5%A5%B6%E8%9B%99-%E7%82%B9%E4%B8%80%E4%B8%8B%E5%B0%B1%E7%8B%82%E7%AC%91%E6%8A%BD%E8%B1%A1%E9%AD%94%E6%80%A7/id6761310915">奶蛙APP</a>
         <i>。</i>
         </i>
     </div>
@@ -1479,7 +1480,7 @@ setBack.onclick = () => {
   if (originalSetBack) originalSetBack();
 };
 
-// 设置页左边缘右滑返回
+/*设置页左边缘右滑返回
 let setTouchStartX = 0, setTouchStartY = 0, setSwiping = false;
 settingPage.addEventListener('touchstart', (e) => {
   const t = e.touches[0];
@@ -1500,9 +1501,9 @@ settingPage.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
-settingPage.addEventListener('touchend', () => { setSwiping = false; });
+settingPage.addEventListener('touchend', () => { setSwiping = false; });*/
 
-// 卡包弹窗向下滑动关闭
+/* 卡包弹窗向下滑动关闭
 let cardStartY = 0, cardStartX = 0, cardSwiping = false;
 cardModal.addEventListener('touchstart', (e) => {
   const t = e.touches[0];
@@ -1523,7 +1524,7 @@ cardModal.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
-cardModal.addEventListener('touchend', () => { cardSwiping = false; });
+cardModal.addEventListener('touchend', () => { cardSwiping = false; });*/
 
 // ===== 空格键触发循环按钮 =====
 document.addEventListener('keydown', function(e) {
@@ -1635,21 +1636,31 @@ function switchToMainForPlay() {
   pendingSwitch = true;
   const reverseTime = reverseVideo.currentTime;
   const mainTime = mainVideo.duration - reverseTime;
-  mainVideo.currentTime = mainTime;
+
+  // 先暂停并隐藏两个视频，避免显示任何旧帧
   reverseVideo.pause();
   reverseVideo.style.display = 'none';
-  mainVideo.style.display = 'block';
+  mainVideo.pause();
+  mainVideo.style.display = 'none';
   mainVideo.muted = !settings.audio;
-  mainVideo.play().catch(() => { pendingSwitch = false; });
-  isReversePlaying = false;
-  pendingSwitch = false;
-}
 
+  // 设置主视频时间，等待 seek 完成
+  mainVideo.currentTime = mainTime;
+
+  mainVideo.addEventListener('seeked', function onSeeked() {
+    mainVideo.removeEventListener('seeked', onSeeked);
+    // seek 完成后才显示并播放
+    mainVideo.style.display = 'block';
+    mainVideo.play().catch(() => { pendingSwitch = false; });
+    isReversePlaying = false;
+    pendingSwitch = false;
+  }, { once: true });
+}
 // 进入倒放模式
 function enterRewindMode() {
   if (rewindMode || pendingSwitch || isExiting || !isPlay || mainVideo.currentTime < 0.1) return;
   if (!canRewind()) {
-    console.warn('[倒放] 该视频无倒放版本');
+    alert('[倒放] 该视频无倒放版本');
     return;
   }
 
@@ -1796,6 +1807,41 @@ viewportContainer.addEventListener('touchstart', function(e) {
   const touch = e.touches[0];
   if (touch) handleScreenTap({ clientX: touch.clientX, target: e.target });
 }, { passive: true });
+
+let seekTimeout = setTimeout(() => {
+  mainVideo.removeEventListener('seeked', onSeeked);
+  mainVideo.style.display = 'block';
+  mainVideo.play().catch(() => {});
+  isReversePlaying = false;
+  pendingSwitch = false;
+}, 200); // 200ms 后强制显示，避免卡死
+mainVideo.addEventListener('seeked', function onSeeked() {
+  clearTimeout(seekTimeout);
+  mainVideo.removeEventListener('seeked', onSeeked);
+  mainVideo.style.display = 'block';
+  mainVideo.play().catch(() => {});
+  isReversePlaying = false;
+  pendingSwitch = false;
+}, { once: true });
+
+// 设置目标日期：修改这里为你的截止时间
+const endDate = new Date('2026-12-31 23:59:59').getTime();
+
+function updateCountDown() {
+  const now = Date.now();
+  const diff = endDate - now;
+
+  let remainDay;
+  if(diff <= 0){
+    remainDay = 0;
+  }else{
+    // 剩余完整天数
+    remainDay = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }
+  document.getElementById('day-num').innerText = remainDay;
+}
+
+updateCountDown();
 </script>
 </body>
 </html>
