@@ -1,0 +1,8 @@
+{
+  "name": "奶蛙",
+  "short_name": "奶蛙",
+  "start_url": ".",
+  "display": "fullscreen",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}
