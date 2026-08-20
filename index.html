@@ -140,7 +140,7 @@ body{
 }
 #settingPage.show{ display:block; }
 .set-header{ display:flex; align-items:center; padding:16px 18px; gap:10px; }
-.backbtn{ width:46px; height:46px; border-radius:12px; background:#efefef; border:none; font-size:22px; cursor:pointer; }
+.backbtn{ width:46px; height:46px; border-radius:12px; background:#efefef00; border:none; font-size:22px; cursor:pointer; }
 .set-header h2{ flex:1; text-align:center; font-size:20px; margin-right:46px; }
 .set-list{ margin-top:10px; }
 .set-row{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #eee; }
@@ -285,8 +285,8 @@ body.glass-experimental .pill-btn {
   <div class="modal-backdrop" id="cardModal">
     <div class="cardpack-sheet">
       <div class="sheet-header">
-        <div class="score-badge">😂 10</div>
-        <div class="event-tag">🤔 沉思纪 · 剩28天</div>
+        <div class="score-badge">😂 0</div>
+        <div class="event-tag">🤔 沉思纪 · 剩0天</div>
         <button class="close-x" id="closeCard">✕</button>
       </div>
       <div class="card-content">
@@ -456,31 +456,64 @@ body.glass-experimental .pill-btn {
 
 <script>
 // 检测是否为移动端
-function isMobileDevice() {
-  // 优先使用指针类型检测（更可靠）
-  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
-    return true;
+(function() {
+  // 1. 更可靠的移动端检测（结合 UA 和 touch 支持）
+  function isMobile() {
+    const ua = navigator.userAgent || '';
+    // 安卓 Chrome / iOS Safari / 通用移动设备
+    return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) 
+           || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
   }
-  // 后备：通过 User Agent 判断
-  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
 
-let autoFullscreenDone = false;
-function tryEnterFullscreen() {
-  if (autoFullscreenDone || !isMobileDevice()) return; // 仅移动端执行
-  autoFullscreenDone = true;
-
-  const el = document.documentElement;
-  if (el.requestFullscreen) {
-    el.requestFullscreen().catch(() => {});
-  } else if (el.webkitRequestFullscreen) {
-    el.webkitRequestFullscreen();
-  } else if (el.mozRequestFullScreen) {
-    el.mozRequestFullScreen();
-  } else if (el.msRequestFullscreen) {
-    el.msRequestFullscreen();
+  // 2. 检查全屏 API 支持
+  function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
   }
-}
+  function canFullscreen() {
+    return document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen || document.documentElement.mozRequestFullScreen || document.documentElement.msRequestFullscreen;
+  }
+
+  // 3. 请求全屏
+  function requestFullscreen() {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      return el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      return el.webkitRequestFullscreen();
+    } else if (el.mozRequestFullScreen) {
+      return el.mozRequestFullScreen();
+    } else if (el.msRequestFullscreen) {
+      return el.msRequestFullscreen();
+    }
+    return Promise.reject(new Error('Fullscreen API not supported'));
+  }
+
+  // 4. 自动全屏触发（首次触摸/点击，仅移动端）
+  let autoFullscreenAttempted = false;
+  function tryAutoFullscreen() {
+    if (autoFullscreenAttempted || !isMobile()) return;
+    autoFullscreenAttempted = true;
+
+    if (!canFullscreen()) {
+      console.warn('[自动全屏] 当前浏览器不支持全屏 API');
+      return;
+    }
+    // 检查是否已全屏
+    if (getFullscreenElement()) return;
+
+    requestFullscreen().catch(err => {
+      console.warn('[自动全屏] 请求被拒绝:', err.message || err);
+      // 在安卓 Chrome 上，如果因为 file:// 被拒绝，建议使用 localhost
+      if (/file:/.test(location.protocol)) {
+        console.warn('[自动全屏] 检测到 file:// 协议，请使用本地服务器（如 Live Server）访问，否则全屏可能失败');
+      }
+    });
+  }
+
+  // 5. 监听用户首次交互（必须在用户手势中调用）
+  document.addEventListener('touchstart', tryAutoFullscreen, { once: true, passive: true });
+  document.addEventListener('click', tryAutoFullscreen, { once: true });
+})();
 
 // 首次触摸或点击时触发（必须在用户手势中）
 document.addEventListener('touchstart', tryEnterFullscreen, { once: true, passive: true });
