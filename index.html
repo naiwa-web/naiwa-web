@@ -17,6 +17,8 @@
   --switch-scale: 1;
   --ui-bg-opacity: 0.55;
   --ui-bg-blur: 12px;
+  --ui-bg-saturate: 1;          /* 新增：饱和度 */
+  --ui-bg-inner-shadow: 0.2;    /* 新增：内阴影强度 */
 }
 body{
   background:#000;
@@ -66,8 +68,9 @@ body{
 }
 .circle-btn,.pill-btn,.setting-btn{
   background-color:rgba(0,0,0,var(--ui-bg-opacity));
-  backdrop-filter:blur(var(--ui-bg-blur));
-  -webkit-backdrop-filter:blur(var(--ui-bg-blur));
+  backdrop-filter:blur(var(--ui-bg-blur)) saturate(var(--ui-bg-saturate, 1));
+  -webkit-backdrop-filter:blur(var(--ui-bg-blur)) saturate(var(--ui-bg-saturate, 1));
+  box-shadow: inset 0 0 10px rgba(0,0,0,var(--ui-bg-inner-shadow, 0.2)), 0 4px 12px rgba(0,0,0,0.3);
   color:#fff; border:none;
   display:flex; align-items:center; justify-content:center;
   cursor:pointer;
@@ -105,9 +108,9 @@ body{
 .cardpack-sheet{
   position:absolute; bottom:0; left:0; width:100%;
   background:#fff;
-  border-radius:26px 26px 0 0;   /* 顶部圆角可以适当增大，如36px */
+  border-radius:26px 26px 0 0;   /* 顶部圆角 */
   display:flex; flex-direction:column; max-height:82vh;
-  overflow:hidden;               /* 关键：防止子元素遮挡圆角 */
+  overflow:hidden;               /* 防止子元素遮挡圆角 */
 }
 .sheet-header{
   display:flex; align-items:center; justify-content:space-between;
@@ -140,7 +143,7 @@ body{
 }
 #settingPage.show{ display:block; }
 .set-header{ display:flex; align-items:center; padding:16px 18px; gap:10px; }
-.backbtn{ width:46px; height:46px; border-radius:12px; background:#efefef00; border:none; font-size:22px; cursor:pointer; }
+.backbtn{ width:46px; height:46px; border-radius:12px; background:#efefef; border:none; font-size:22px; cursor:pointer; }
 .set-header h2{ flex:1; text-align:center; font-size:20px; margin-right:46px; }
 .set-list{ margin-top:10px; }
 .set-row{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #eee; }
@@ -444,6 +447,34 @@ body.glass-experimental .pill-btn {
         </div>
         
       </div>
+      <!-- 液态玻璃参数面板 -->
+<div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;">液态玻璃参数</div>
+
+<!-- 按钮背景饱和度 -->
+<div class="set-row">
+  <div>按钮饱和度</div>
+  <div class="liquid-slider-container" id="sliderBgSaturate" data-min="0" data-max="3" data-step="0.1" data-value="1"></div>
+</div>
+<!-- 按钮内阴影强度 -->
+<div class="set-row">
+  <div>按钮内阴影</div>
+  <div class="liquid-slider-container" id="sliderBgInnerShadow" data-min="0" data-max="1" data-step="0.05" data-value="0.2"></div>
+</div>
+<!-- 开关折射强度 -->
+<div class="set-row">
+  <div>开关折射强度</div>
+  <div class="liquid-slider-container" id="sliderSwitchRefraction" data-min="0.5" data-max="3" data-step="0.1" data-value="1.5"></div>
+</div>
+<!-- 开关模糊 -->
+<div class="set-row">
+  <div>开关模糊</div>
+  <div class="liquid-slider-container" id="sliderSwitchBlur" data-min="0" data-max="2" data-step="0.05" data-value="0.2"></div>
+</div>
+<!-- 开关高光饱和度 -->
+<div class="set-row">
+  <div>开关饱和度</div>
+  <div class="liquid-slider-container" id="sliderSwitchSaturation" data-min="0" data-max="10" data-step="0.5" data-value="6"></div>
+</div>
       <div>
           <i>
             *基于svg的液态玻璃在较新chrome和firefox中可用，safari不可用*
@@ -756,21 +787,33 @@ function createLiquidGlassSwitch(containerEl, filterId, onChangeCallback, initia
     cloneInner.style.setProperty("--switch-track-color", trackBgColor);
 
     // ===== 修正 cloneInner 尺寸和位置 =====
-    const thumbTopInContainer = config.trackHeight / 2 - config.thumbHeight / 2; // -12.5
-    const trackTopInThumb = -thumbTopInContainer; // 12.5
+    const thumbTopInContainer = config.trackHeight / 2 - config.thumbHeight / 2;
+    const trackTopInThumb = -thumbTopInContainer;
     const trackLeftInThumb = -thumbX;
 
-    cloneInner.style.width = config.thumbWidth + "px";   // 146
-    cloneInner.style.height = config.thumbHeight + "px"; // 92
+    cloneInner.style.width = config.thumbWidth + "px";
+    cloneInner.style.height = config.thumbHeight + "px";
     cloneInner.style.transform = "none";
     cloneInner.style.setProperty("--track-left", trackLeftInThumb + "px");
     cloneInner.style.setProperty("--track-top", trackTopInThumb + "px");
 
-    dispMapEl.setAttribute("scale", state.maximumDisplacement * scaleRatio * 1.5);
+    // 折射强度：从 settings 读取，默认 1.5
+    const refractionBoost = (typeof settings !== 'undefined' && settings.switchRefractionBoost) ? settings.switchRefractionBoost : 1.5;
+    dispMapEl.setAttribute("scale", state.maximumDisplacement * scaleRatio * refractionBoost);
+
+    // 动态更新模糊和饱和度
+    if (typeof settings !== 'undefined') {
+        if (settings.switchBlur !== undefined) {
+            blurEl.setAttribute("stdDeviation", settings.switchBlur);
+        }
+        if (settings.switchSaturation !== undefined) {
+            saturateEl.setAttribute("values", settings.switchSaturation);
+        }
+    }
 
     const settled = Object.values(springs).every(s => s.isSettled());
     if (!settled) { animId = requestAnimationFrame(loop); } else animId = null;
-  }
+}
 
   function startAnim() { if (!animId) animId = requestAnimationFrame(loop); }
 
@@ -830,7 +873,11 @@ function createLiquidGlassSwitch(containerEl, filterId, onChangeCallback, initia
       if (old !== state.checked && onChangeCallback) onChangeCallback(state.checked);
       startAnim();
     },
-    getChecked() { return state.checked; }
+    getChecked() { return state.checked; },
+    // 暴露 startAnim，供滑块回调触发动画重新运行
+    startAnim,
+    // 可选：暴露 updateFilter，若参数影响贴图生成（如模糊、饱和度）可手动调用
+    updateFilter
   };
 }
 
@@ -917,8 +964,10 @@ function createLiquidGlassSlider(containerEl, filterId, initialValue, min, max, 
   function getActive() { return state.pointerDown; }
 
   function updateUI() {
-    const ratio = state.value / (max - min);
+    // 将值映射到 0~1 比例（注意 min、max 可能不是 0 和 1）
+    const ratio = (state.value - min) / (max - min);
     fill.style.width = (ratio * 100) + "%";
+
     const thumbWidthRest = config.thumbWidth * config.SCALE_REST;
     const x0 = thumbWidthRest / 2;
     const x100 = config.trackWidth - thumbWidthRest / 2;
@@ -926,11 +975,11 @@ function createLiquidGlassSlider(containerEl, filterId, initialValue, min, max, 
     const thumbX = thumbCenterX - config.thumbWidth / 2;
     thumb.style.left = thumbX + "px";
 
-    // cloneInner 位置：使用容器内部固定坐标
+    // cloneInner 位置更新（保持原有逻辑，已考虑缩放）
     const containerWidth = containerEl.offsetWidth || 160;
     const containerHeight = containerEl.offsetHeight || 60;
-    const trackTop = 25; // (60 - 10) / 2 = 25
-    const thumbTop = 5;  // (60 - 50) / 2 = 5
+    const trackTop = 25; // (60 - 10) / 2
+    const thumbTop = 5;  // (60 - 50) / 2
     cloneInner.style.width = containerWidth + "px";
     cloneInner.style.height = containerHeight + "px";
     cloneInner.style.transform = `translate(${-thumbX}px, ${-thumbTop}px)`;
@@ -966,21 +1015,37 @@ function createLiquidGlassSlider(containerEl, filterId, initialValue, min, max, 
     state.pointerDown = true;
     startAnim();
   }
-  function onPointerMove(e) {
-    if (!state.pointerDown) return;
-    e.preventDefault();
-    const pt = e.touches ? e.touches[0] : e;
-    const trackRect = track.getBoundingClientRect();
-    const thumbWidthRest = config.thumbWidth * config.SCALE_REST;
-    const x0 = trackRect.left + thumbWidthRest / 2;
-    const x100 = trackRect.right - thumbWidthRest / 2;
-    const x = Math.max(x0, Math.min(x100, pt.clientX));
-    const ratio = (x - x0) / (x100 - x0);
-    state.value = Math.round((ratio * (max - min) + min) / step) * step;
-    state.value = Math.max(min, Math.min(max, state.value));
-    updateUI();
-    if (onChangeCallback) onChangeCallback(state.value);
-  }
+function onPointerMove(e) {
+  if (!state.pointerDown) return;
+  e.preventDefault();
+  const pt = e.touches ? e.touches[0] : e;
+
+  const containerRect = containerEl.getBoundingClientRect();
+  const trackRect = track.getBoundingClientRect();
+
+  // 实际缩放因子 = 渲染宽度 / 布局宽度（zoom 不继承，用比例计算）
+  const zoom = containerRect.width / containerEl.offsetWidth; // 注意 containerEl
+
+  const clientX = pt.clientX;
+  const internalX = (clientX - containerRect.left) / zoom;
+
+  const trackLeft = track.offsetLeft;
+  const trackWidth = track.offsetWidth;
+
+  const thumbWidthRest = config.thumbWidth * config.SCALE_REST;
+
+  const x0 = trackLeft + thumbWidthRest / 2;
+  const x100 = trackLeft + trackWidth - thumbWidthRest / 2;
+
+  const x = Math.max(x0, Math.min(x100, internalX));
+  const ratio = (x - x0) / (x100 - x0);
+
+  state.value = Math.round((ratio * (max - min) + min) / step) * step;
+  state.value = Math.max(min, Math.min(max, state.value));
+
+  updateUI();
+  if (onChangeCallback) onChangeCallback(state.value);
+}
   function onPointerUp() {
     state.pointerDown = false;
     startAnim();
@@ -1025,7 +1090,11 @@ const STORAGE_KEY = 'naifrog_settings';
 const defaultSettings = {
   audio: true, portrait: false, mirror: false, wake: false,
   uiScale: 1, switchScale: 1, bgOpacity: 0.55, bgBlur: 12,
-  experimentalGlass: false, backgroundWhite: false
+  experimentalGlass: false, backgroundWhite: false, bgSaturate: 1,
+  bgInnerShadow: 0.2,
+  switchRefractionBoost: 1.5,
+  switchBlur: 0.2,
+  switchSaturation: 6,
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
 
@@ -1073,6 +1142,8 @@ function applySettings() {
   document.documentElement.style.setProperty('--switch-scale', settings.switchScale);
   document.documentElement.style.setProperty('--ui-bg-opacity', settings.bgOpacity);
   document.documentElement.style.setProperty('--ui-bg-blur', settings.bgBlur + 'px');
+  document.documentElement.style.setProperty('--ui-bg-saturate', settings.bgSaturate);
+  document.documentElement.style.setProperty('--ui-bg-inner-shadow', settings.bgInnerShadow);
   document.body.classList.toggle('glass-experimental', settings.experimentalGlass);
   updateBgButtons();
 }
@@ -1144,6 +1215,31 @@ btnOpenSet.onclick = () => {
 
     switchInited = true;
   }
+  sliderBgSaturate = createLiquidGlassSlider(
+  document.getElementById('sliderBgSaturate'), 'filterSliderBgSaturate',
+  settings.bgSaturate, 0, 3, 0.1,
+  (val) => { settings.bgSaturate = val; document.documentElement.style.setProperty('--ui-bg-saturate', val); saveSettings(); }
+);
+sliderBgInnerShadow = createLiquidGlassSlider(
+  document.getElementById('sliderBgInnerShadow'), 'filterSliderBgInnerShadow',
+  settings.bgInnerShadow, 0, 1, 0.05,
+  (val) => { settings.bgInnerShadow = val; document.documentElement.style.setProperty('--ui-bg-inner-shadow', val); saveSettings(); }
+);
+sliderSwitchRefraction = createLiquidGlassSlider(
+  document.getElementById('sliderSwitchRefraction'), 'filterSliderSwitchRefraction',
+  settings.switchRefractionBoost, 0.5, 3, 0.1,
+  (val) => { settings.switchRefractionBoost = val; saveSettings(); }
+);
+sliderSwitchBlur = createLiquidGlassSlider(
+  document.getElementById('sliderSwitchBlur'), 'filterSliderSwitchBlur',
+  settings.switchBlur, 0, 2, 0.05,
+  (val) => { settings.switchBlur = val; saveSettings(); updateAllSwitchFilters(); }
+);
+sliderSwitchSaturation = createLiquidGlassSlider(
+  document.getElementById('sliderSwitchSaturation'), 'filterSliderSwitchSaturation',
+  settings.switchSaturation, 0, 10, 0.5,
+  (val) => { settings.switchSaturation = val; saveSettings(); updateAllSwitchFilters(); }
+);
 };
 setBack.onclick = () => settingPage.classList.remove('show');
 
@@ -1181,6 +1277,19 @@ initCardThumbs();
 if (settings.wake && navigator.wakeLock) {
   navigator.wakeLock.request('screen').then(lock => { wakeLock = lock; }).catch(() => { settings.wake = false; saveSettings(); });
 }
+
+ document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
+      if (settingPage.classList.contains('show')) {
+        settingPage.classList.remove('show');
+        return;
+      }
+      if (cardModal.classList.contains('show')) {
+        cardModal.classList.remove('show');
+        return;
+      }
+    }
+  });
 </script>
 </body>
 </html>
