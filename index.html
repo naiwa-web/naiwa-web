@@ -374,7 +374,7 @@ body.glass-experimental .pill-btn span {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.1.5</i>
+      <i>v0.1.5.1beta-mobile</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -515,61 +515,51 @@ body.glass-experimental .pill-btn span {
 </div>
 
 <script>
+// ===== 手机自动全屏（增强版） =====
 (function() {
-  // 1. 更可靠的移动端检测（结合 UA 和 touch 支持）
+  // 更宽松但可靠的移动端检测
   function isMobile() {
     const ua = navigator.userAgent || '';
-    // 安卓 Chrome / iOS Safari / 通用移动设备
-    return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) 
-           || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+    return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)
+        || (('ontouchstart' in window) && navigator.maxTouchPoints > 0);
   }
 
-  // 2. 检查全屏 API 支持
-  function getFullscreenElement() {
-    return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
-  }
   function canFullscreen() {
-    return document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen || document.documentElement.mozRequestFullScreen || document.documentElement.msRequestFullscreen;
+    const el = document.documentElement;
+    return !!(el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen);
   }
 
-  // 3. 请求全屏
   function requestFullscreen() {
     const el = document.documentElement;
-    if (el.requestFullscreen) {
-      return el.requestFullscreen();
-    } else if (el.webkitRequestFullscreen) {
-      return el.webkitRequestFullscreen();
-    } else if (el.mozRequestFullScreen) {
-      return el.mozRequestFullScreen();
-    } else if (el.msRequestFullscreen) {
-      return el.msRequestFullscreen();
-    }
+    if (el.requestFullscreen) return el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) return el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) return el.msRequestFullscreen();
     return Promise.reject(new Error('Fullscreen API not supported'));
   }
 
-  // 4. 自动全屏触发（首次触摸/点击，仅移动端）
-  let autoFullscreenAttempted = false;
+  let autoAttempted = false;
   function tryAutoFullscreen() {
-    if (autoFullscreenAttempted || !isMobile()) return;
-    autoFullscreenAttempted = true;
+    if (autoAttempted || !isMobile()) return;
+    autoAttempted = true;
 
     if (!canFullscreen()) {
       console.warn('[自动全屏] 当前浏览器不支持全屏 API');
       return;
     }
-    // 检查是否已全屏
-    if (getFullscreenElement()) return;
+
+    // 如果已全屏则忽略
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
 
     requestFullscreen().catch(err => {
       console.warn('[自动全屏] 请求被拒绝:', err.message || err);
-      // 在安卓 Chrome 上，如果因为 file:// 被拒绝，建议使用 localhost
-      if (/file:/.test(location.protocol)) {
+      if (location.protocol === 'file:') {
         console.warn('[自动全屏] 检测到 file:// 协议，请使用本地服务器（如 Live Server）访问，否则全屏可能失败');
       }
     });
   }
 
-  // 5. 监听用户首次交互（必须在用户手势中调用）
+  // 首次触摸/点击时触发（必须在用户手势中）
   document.addEventListener('touchstart', tryAutoFullscreen, { once: true, passive: true });
   document.addEventListener('click', tryAutoFullscreen, { once: true });
 })();
