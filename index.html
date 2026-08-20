@@ -374,7 +374,7 @@ body.glass-experimental .pill-btn span {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.1.5.1beta-mobile</i>
+      <i>v0.1.6</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -515,9 +515,8 @@ body.glass-experimental .pill-btn span {
 </div>
 
 <script>
-// ===== 手机自动全屏（增强版） =====
+// ===== 手机自动全屏（仅 click 触发，确保用户激活） =====
 (function() {
-  // 更宽松但可靠的移动端检测
   function isMobile() {
     const ua = navigator.userAgent || '';
     return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)
@@ -548,20 +547,19 @@ body.glass-experimental .pill-btn span {
       return;
     }
 
-    // 如果已全屏则忽略
     if (document.fullscreenElement || document.webkitFullscreenElement) return;
 
+    // 延迟到下一个微任务？不要，必须在事件处理内直接调用
     requestFullscreen().catch(err => {
       console.warn('[自动全屏] 请求被拒绝:', err.message || err);
       if (location.protocol === 'file:') {
-        console.warn('[自动全屏] 检测到 file:// 协议，请使用本地服务器（如 Live Server）访问，否则全屏可能失败');
+        console.warn('[自动全屏] 检测到 file:// 协议，请使用本地服务器访问');
       }
     });
   }
 
-  // 首次触摸/点击时触发（必须在用户手势中）
-  document.addEventListener('touchstart', tryAutoFullscreen, { once: true, passive: true });
-  document.addEventListener('click', tryAutoFullscreen, { once: true });
+  // 只监听 click 事件（移动端点击会触发 click，且用户激活有效）
+  document.addEventListener('click', tryAutoFullscreen, { once: true, capture: true });
 })();
 // ==================== 液态玻璃工具函数 ====================
 const SurfaceEquations = {
