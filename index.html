@@ -104,8 +104,10 @@ body{
 .modal-backdrop.show{ display:block; }
 .cardpack-sheet{
   position:absolute; bottom:0; left:0; width:100%;
-  background:#fff; border-radius:28px 28px 0 0;
+  background:#fff;
+  border-radius:26px 26px 0 0;   /* 顶部圆角可以适当增大，如36px */
   display:flex; flex-direction:column; max-height:82vh;
+  overflow:hidden;               /* 关键：防止子元素遮挡圆角 */
 }
 .sheet-header{
   display:flex; align-items:center; justify-content:space-between;
@@ -440,12 +442,36 @@ body.glass-experimental .pill-btn {
           <button class="bg-btn active" data-bg="black">黑</button>
           <button class="bg-btn" data-bg="white">白</button>
         </div>
+        
       </div>
+      <div>
+          <i>
+            *基于svg的液态玻璃在较新chrome和firefox中可用，safari不可用*
+          </i>
+      </div>
+      
     </div>
   </div>
 </div>
 
 <script>
+let autoFullscreenDone = false;
+function tryEnterFullscreen() {
+  if (autoFullscreenDone) return;
+  autoFullscreenDone = true;
+  const el = document.documentElement;
+  if (el.requestFullscreen) {
+    el.requestFullscreen().catch(() => {});
+  } else if (el.webkitRequestFullscreen) {
+    el.webkitRequestFullscreen();
+  } else if (el.mozRequestFullScreen) {
+    el.mozRequestFullScreen();
+  } else if (el.msRequestFullscreen) {
+    el.msRequestFullscreen();
+  }
+}
+document.addEventListener('touchstart', tryEnterFullscreen, { once: true, passive: true });
+document.addEventListener('click', tryEnterFullscreen, { once: true });
 // ==================== 液态玻璃工具函数 ====================
 const SurfaceEquations = {
   convex_circle: (x) => Math.sqrt(1 - Math.pow(1 - x, 2)),
