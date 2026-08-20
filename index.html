@@ -1842,6 +1842,22 @@ function updateCountDown() {
 }
 
 updateCountDown();
+
+
+// ===== 按钮震动反馈（仅移动端有效） =====
+function vibrateOnTap(pattern = 10) {
+  if (navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+}
+
+// 为底部所有按钮添加 touchstart 震动
+const vibrateButtons = document.querySelectorAll('.circle-btn, .pill-btn, .setting-btn, #btnStopRewind');
+vibrateButtons.forEach(btn => {
+  btn.addEventListener('touchstart', function() {
+    vibrateOnTap(10); // 震动 10 毫秒
+  }, { passive: true });
+});
 </script>
 </body>
 </html>
