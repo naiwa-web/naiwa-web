@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>奶蛙</title>
+<style>
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+:root{
+  --bg:#ffffff;
+  --text:#111;
+  --text-gray:#888;
+  --ui-scale: 1;
+  --switch-scale: 1;
+  --ui-bg-opacity: 0.55;
+  --ui-bg-blur: 12px;
+  --experimental-glass: 0; /* 0=关，1=开 */
+}
+body{
+  background:#000;
+  overflow:hidden;
+  height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+  margin:0;
+  transition: background-color .3s;
+}
+
+/* 最外层视口容器 */
+#viewport-container{
+  width:100vw;
+  height:100vh;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transform: translateZ(0);
+  margin: 0 auto;
+}
+#viewport-container.lock-portrait-mode{
+  width:auto;
+  height:100vh;
+  max-width:100vw;
+  aspect-ratio:9/16;
+  margin: 0 auto;
+}
+
+/* 主视频 */
+#mainVideo{
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  background:#000000;
+  z-index:1;
+  object-position: center;
+  transition: background-color .3s;
+}
+#mainVideo.mode-cover{
+  object-fit:cover;
+}
+#mainVideo.mode-contain{
+  object-fit:contain;
+}
+
+/* 底部 UI */
+.bottom-ui{
+  position:absolute;
+  bottom:calc(48px * var(--ui-scale));
+  left:0;
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:calc(24px * var(--ui-scale));
+  z-index:2;
+}
+.circle-btn,
+.pill-btn,
+.setting-btn{
+  background-color:rgba(0,0,0,var(--ui-bg-opacity));
+  backdrop-filter:blur(var(--ui-bg-blur));
+  -webkit-backdrop-filter:blur(var(--ui-bg-blur));
+  color:#fff;
+  border:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.circle-btn{
+  width:calc(72px * var(--ui-scale));
+  height:calc(72px * var(--ui-scale));
+  border-radius:50%;
+  font-size:calc(24px * var(--ui-scale));
+}
+.pill-btn{
+  height:calc(72px * var(--ui-scale));
+  padding:0 calc(28px * var(--ui-scale));
+  border-radius:999px;
+  font-size:calc(24px * var(--ui-scale));
+  gap:calc(8px * var(--ui-scale));
+}
+.pill-btn span{
+  font-size:calc(14px * var(--ui-scale));
+  color:#fff;
+}
+.setting-btn{
+  width:calc(72px * var(--ui-scale));
+  height:calc(72px * var(--ui-scale));
+  border-radius:50%;
+  font-size:calc(24px * var(--ui-scale));
+}
+
+@keyframes spinSlow{
+  from{transform:rotate(0deg);}
+  to{transform:rotate(360deg);}
+}
+.circle-btn.spinning .icon-loop{
+  animation:spinSlow 3s linear infinite;
+}
+
+/* 卡包弹窗 */
+.modal-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.35);
+  z-index:99;
+  display:none;
+}
+.modal-backdrop.show{display:block;}
+.cardpack-sheet{
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  background:#ffffff;
+  border-radius:28px 28px 0 0; /* 加大顶部圆角 */
+  display:flex;
+  flex-direction:column;
+  max-height:82vh;
+}
+.sheet-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 20px 12px; /* 增加内边距 */
+  flex-shrink:0; /* 防止压缩 */
+  background:#ffffff;
+  z-index:2;
+}
+.score-badge,
+.event-tag{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#f3f3f5;
+  border-radius:999px;
+  padding:6px 12px;
+  font-size:16px;
+}
+.event-tag{
+  font-size:15px;
+  color:#444;
+}
+.close-x{
+  width:34px;height:34px;
+  border-radius:50%;
+  background:#eee;
+  border:none;
+  font-size:18px;
+  color:#666;
+  cursor:pointer;
+}
+.card-content{
+  overflow-y:auto;
+  padding:0 20px 20px;
+  flex:1;
+}
+.cat-title{
+  font-size:14px;
+  color:#777;
+  margin:22px 0 10px 2px;
+}
+.card-grid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:12px;
+}
+.card-item{
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid #eee;
+  position:relative;
+  cursor:pointer;
+}
+.card-thumb{
+  width:100%;
+  aspect-ratio:1/1;
+  background:#f8f8f8;
+  overflow:hidden;
+  position:relative;
+}
+.card-thumb video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  pointer-events:none;
+}
+.card-name-bar{
+  background:#000000;
+  color:#ffffff;
+  font-size:14px;
+  text-align:center;
+  padding:6px 0;
+}
+
+/* 设置全屏页 */
+#settingPage{
+  position:absolute;
+  inset:0;
+  background:#fff;
+  z-index:200;
+  display:none;
+  overflow-y:auto;
+  zoom: var(--ui-scale);
+  -moz-transform: scale(var(--ui-scale));
+  -moz-transform-origin: top left;
+}
+#settingPage.show{display:block;}
+.set-header{
+  display:flex;
+  align-items:center;
+  padding:16px 18px;
+  gap:10px;
+}
+.backbtn{
+  width:46px;height:46px;
+  border-radius:12px;
+  background:#efefef;
+  border:none;
+  font-size:22px;
+  cursor:pointer;
+}
+.set-header h2{
+  flex:1;
+  text-align:center;
+  font-size:20px;
+  margin-right:46px;
+}
+.set-list{margin-top:10px;}
+.set-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 20px;
+  border-bottom:1px solid #eee;
+}
+
+/* 普通滑块样式 (实验性玻璃风格覆盖) */
+.ui-slider{
+  width:160px;
+  height:6px;
+  -webkit-appearance:none;
+  background:#ddd;
+  border-radius:3px;
+  outline:none;
+}
+.ui-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  background:#3bbf4e;
+  cursor:pointer;
+  border:none;
+}
+.ui-slider::-moz-range-thumb{
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  background:#3bbf4e;
+  cursor:pointer;
+  border:none;
+}
+
+/* 实验性液态玻璃风格控制 (由开关控制) */
+body.glass-experimental .ui-slider{
+  background:rgba(148,148,159,0.47);
+  height:8px;
+  border-radius:4px;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.1);
+}
+body.glass-experimental .ui-slider::-webkit-slider-thumb{
+  width:28px;
+  height:28px;
+  background:rgba(255,255,255,0.9);
+  box-shadow: 0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09);
+  backdrop-filter: blur(12px);
+  border-radius:14px;
+}
+body.glass-experimental .ui-slider::-moz-range-thumb{
+  width:28px;
+  height:28px;
+  background:rgba(255,255,255,0.9);
+  box-shadow: 0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09);
+  backdrop-filter: blur(12px);
+  border-radius:14px;
+}
+body.glass-experimental .bg-toggle .bg-btn{
+  background:rgba(255,255,255,0.8);
+  backdrop-filter: blur(12px);
+  border:2px solid rgba(148,148,159,0.47);
+  box-shadow: 0 4px 22px rgba(0,0,0,0.1);
+  padding:10px 18px;
+  border-radius:999px;
+  transition:all .2s;
+}
+body.glass-experimental .bg-btn.active{
+  background:rgba(59,191,78,0.2);
+  border-color:#3bbf4e;
+}
+
+/* 开关模块缩放 (独立于整体UI) */
+.switch-wrap{
+  position:relative;
+  width:160px;
+  height:67px;
+  flex-shrink:0;
+  zoom: var(--switch-scale); /* 使用zoom缩放开关，保持交互坐标一致 */
+}
+
+/* ========== Liquid‑Glass Switch 组件样式 ========== */
+.switch-track {
+    display: inline-block;
+    position: relative;
+    width: 160px;
+    height: 67px;
+    background-color: #94949f77;
+    border-radius: 33.5px;
+    cursor: pointer;
+}
+.switch-thumb {
+    position: absolute;
+    width: 146px;
+    height: 92px;
+    border-radius: 46px;
+    top: 33.5px;
+    transform: translateY(-50%) scale(0.65);
+    transform-origin: center center;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    background-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    will-change: transform, left, background-color, box-shadow;
+}
+.switch-thumb-clone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: inherit;
+    z-index: 1;
+    opacity: 0;
+    will-change: opacity;
+}
+.switch-thumb-clone-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+        radial-gradient(
+            120% 100% at 10% 0%,
+            #ffffff,
+            #f7f7f7
+        );
+    background-size:
+        24px 24px,
+        24px 24px,
+        100% 100%;
+    background-position:
+        12px 12px,
+        12px 12px,
+        0 0;
+}
+.switch-thumb-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    z-index: 3;
+    pointer-events: none;
+}
+.glass-filter-svg {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div id="viewport-container">
+  <video id="mainVideo" class="mode-cover" src="a1-glimpse.mp4" loop playsinline></video>
+
+  <div class="bottom-ui">
+    <button class="circle-btn" id="btnLoop">
+      <span class="icon-loop">♻️</span>
+    </button>
+    <button class="pill-btn" id="btnOpenCard">
+      🃏<span>卡包</span>
+    </button>
+    <button class="setting-btn" id="btnOpenSet">⚙️</button>
+  </div>
+
+  <!-- 卡包弹窗 -->
+  <div class="modal-backdrop" id="cardModal">
+    <div class="cardpack-sheet">
+      <div class="sheet-header">
+        <div class="score-badge">😂 0</div>
+        <div class="event-tag">🤔 沉思纪 · 剩 0 天</div>
+        <button class="close-x" id="closeCard">✕</button>
+      </div>
+      <div class="card-content">
+        <div class="cat-title">动作</div>
+        <div class="card-grid">
+          <div class="card-item" data-video="a1-glimpse.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">惊鸿一瞥</div>
+          </div>
+          <div class="card-item" data-video="a2-turtle.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">嘘</div>
+          </div>
+          <div class="card-item" data-video="a3-angel.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">虔诚</div>
+          </div>
+          <div class="card-item" data-video="a4-meditation.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">龟速前进</div>
+          </div>
+        </div>
+
+        <div class="cat-title">场景</div>
+        <div class="card-grid">
+          <div class="card-item" data-video="b1-police.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">相视一笑</div>
+          </div>
+          <div class="card-item" data-video="b2-apple.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">万有引力</div>
+          </div>
+          <div class="card-item" data-video="b3-egg.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">破壳</div>
+          </div>
+          <div class="card-item" data-video="b4-sad.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">负蛙</div>
+          </div>
+        </div>
+
+        <div class="cat-title">陪伴</div>
+        <div class="card-grid">
+          <div class="card-item" data-video="c1-rain.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">蛙不易</div>
+          </div>
+          <div class="card-item" data-video="c2-kid.mp4">
+            <div class="card-thumb"></div>
+            <div class="card-name-bar">忧郁童年</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置页面 -->
+  <div id="settingPage">
+    <div class="set-header">
+      <button class="backbtn" id="setBack">‹</button>
+      <h2>设置</h2>
+    </div>
+    <div class="set-list">
+      <div class="set-row">
+        <div>开启音频</div>
+        <div class="switch-wrap" id="wrapAudio">
+          <div class="switch-track" data-target="audio">
+            <div class="switch-thumb">
+              <div class="switch-thumb-clone">
+                <div class="switch-thumb-clone-inner"></div>
+              </div>
+              <svg class="glass-filter-svg">
+                <defs>
+                  <filter id="filterAudio" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+                    <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                    <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+                    <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+                    <feComponentTransfer in="specular_layer" result="specular_faded">
+                      <feFuncA type="linear" slope="0.5"/>
+                    </feComponentTransfer>
+                    <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+                    <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+                  </filter>
+                </defs>
+              </svg>
+              <div class="switch-thumb-inner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="set-row">
+        <div>横屏保持竖屏比例</div>
+        <div class="switch-wrap" id="wrapPortrait">
+          <div class="switch-track" data-target="portrait">
+            <div class="switch-thumb">
+              <div class="switch-thumb-clone">
+                <div class="switch-thumb-clone-inner"></div>
+              </div>
+              <svg class="glass-filter-svg">
+                <defs>
+                  <filter id="filterPortrait" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+                    <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                    <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+                    <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+                    <feComponentTransfer in="specular_layer" result="specular_faded">
+                      <feFuncA type="linear" slope="0.5"/>
+                    </feComponentTransfer>
+                    <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+                    <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+                  </filter>
+                </defs>
+              </svg>
+              <div class="switch-thumb-inner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="set-row">
+        <div>水平镜像</div>
+        <div class="switch-wrap" id="wrapMirror">
+          <div class="switch-track" data-target="mirror">
+            <div class="switch-thumb">
+              <div class="switch-thumb-clone">
+                <div class="switch-thumb-clone-inner"></div>
+              </div>
+              <svg class="glass-filter-svg">
+                <defs>
+                  <filter id="filterMirror" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+                    <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                    <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+                    <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+                    <feComponentTransfer in="specular_layer" result="specular_faded">
+                      <feFuncA type="linear" slope="0.5"/>
+                    </feComponentTransfer>
+                    <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+                    <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+                  </filter>
+                </defs>
+              </svg>
+              <div class="switch-thumb-inner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="set-row">
+        <div>屏幕常亮</div>
+        <div class="switch-wrap" id="wrapWake">
+          <div class="switch-track" data-target="wake">
+            <div class="switch-thumb">
+              <div class="switch-thumb-clone">
+                <div class="switch-thumb-clone-inner"></div>
+              </div>
+              <svg class="glass-filter-svg">
+                <defs>
+                  <filter id="filterWake" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+                    <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                    <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+                    <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+                    <feComponentTransfer in="specular_layer" result="specular_faded">
+                      <feFuncA type="linear" slope="0.5"/>
+                    </feComponentTransfer>
+                    <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+                    <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+                  </filter>
+                </defs>
+              </svg>
+              <div class="switch-thumb-inner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 新增：UI大小滑块 -->
+      <div class="set-row">
+        <div>UI大小</div>
+        <input type="range" id="uiScaleRange" class="ui-slider" min="0.6" max="1.5" step="0.1" value="1" />
+      </div>
+      <!-- 新增：开关模块大小滑块 -->
+      <div class="set-row">
+        <div>开关模块大小</div>
+        <input type="range" id="switchScaleRange" class="ui-slider" min="0.6" max="1.5" step="0.1" value="1" />
+      </div>
+      <!-- 新增：背景透明度滑块 -->
+      <div class="set-row">
+        <div>按钮背景透明度</div>
+        <input type="range" id="bgOpacityRange" class="ui-slider" min="0.1" max="0.9" step="0.05" value="0.55" />
+      </div>
+      <!-- 新增：背景模糊度滑块 -->
+      <div class="set-row">
+        <div>按钮背景模糊度</div>
+        <input type="range" id="bgBlurRange" class="ui-slider" min="0" max="30" step="1" value="12" />
+      </div>
+      <!-- 新增：实验性液态玻璃风格开关 -->
+      <div class="set-row">
+        <div>实验性液态玻璃风格</div>
+        <div class="switch-wrap" id="wrapExperimental">
+          <div class="switch-track" data-target="experimental">
+            <div class="switch-thumb">
+              <div class="switch-thumb-clone">
+                <div class="switch-thumb-clone-inner"></div>
+              </div>
+              <svg class="glass-filter-svg">
+                <defs>
+                  <filter id="filterExperimental" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+                    <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                    <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+                    <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+                    <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+                    <feComponentTransfer in="specular_layer" result="specular_faded">
+                      <feFuncA type="linear" slope="0.5"/>
+                    </feComponentTransfer>
+                    <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+                    <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+                  </filter>
+                </defs>
+              </svg>
+              <div class="switch-thumb-inner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 视频背景黑白切换 -->
+      <div class="set-row">
+        <div>视频背景</div>
+        <div class="bg-toggle">
+          <button class="bg-btn active" data-bg="black">黑</button>
+          <button class="bg-btn" data-bg="white">白</button>
+        </div>
+      </div>
+      <div>
+        <i>*视频资源提取自奶蛙APP
+             <a href="https://apps.apple.com/cn/app/%E5%A5%B6%E8%9B%99-%E7%82%B9%E4%B8%80%E4%B8%8B%E5%B0%B1%E7%8B%82%E7%AC%91%E6%8A%BD%E8%B1%A1%E9%AD%94%E6%80%A7/id6761310915">原APP</a>
+        <i>*</i>
+        </i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========= 液态玻璃开关核心工具函数 =========
+const SurfaceEquations = {
+  convex_circle: (x) => Math.sqrt(1 - Math.pow(1 - x, 2)),
+  convex_squircle: (x) => Math.pow(1 - Math.pow(1 - x, 4), 1 / 4),
+  concave: (x) => 1 - Math.sqrt(1 - Math.pow(x, 2)),
+  lip: (x) => {
+    const convex = Math.pow(1 - Math.pow(1 - Math.min(x * 2, 1), 4), 1 / 4);
+    const concave = 1 - Math.sqrt(1 - Math.pow(1 - x, 2)) + 0.1;
+    const smootherstep = 6 * Math.pow(x, 5) - 15 * Math.pow(x, 4) + 10 * Math.pow(x, 3);
+    return convex * (1 - smootherstep) + concave * smootherstep;
+  },
+};
+class Spring {
+  constructor(value, stiffness = 1000, damping = 80) {
+    this.value = value;
+    this.target = value;
+    this.velocity = 0;
+    this.stiffness = stiffness;
+    this.damping = damping;
+  }
+  setTarget(target) { this.target = target; }
+  update(dt) {
+    const force = (this.target - this.value) * this.stiffness;
+    const dampingForce = this.velocity * this.damping;
+    this.velocity += (force - dampingForce) * dt;
+    this.value += this.velocity * dt;
+    return this.value;
+  }
+  isSettled() {
+    return Math.abs(this.target - this.value) < 0.001 && Math.abs(this.velocity) < 0.001;
+  }
+}
+function calculateDisplacementMap1D(glassThickness, bezelWidth, surfaceFn, refractiveIndex, samples = 128) {
+  const eta = 1 / refractiveIndex;
+  function refract(normalX, normalY) {
+    const dot = normalY;
+    const k = 1 - eta * eta * (1 - dot * dot);
+    if (k < 0) return null;
+    const kSqrt = Math.sqrt(k);
+    return [-(eta * dot + kSqrt) * normalX, eta - (eta * dot + kSqrt) * normalY];
+  }
+  const result = [];
+  for (let i = 0; i < samples; i++) {
+    const x = i / samples;
+    const y = surfaceFn(x);
+    const dx = x < 1 ? 0.0001 : -0.0001;
+    const y2 = surfaceFn(Math.max(0, Math.min(1, x + dx)));
+    const derivative = (y2 - y) / dx;
+    const magnitude = Math.sqrt(derivative * derivative + 1);
+    const normal = [-derivative / magnitude, -1 / magnitude];
+    const refracted = refract(normal[0], normal[1]);
+    if (!refracted) result.push(0);
+    else {
+      const remainingHeightOnBezel = y * bezelWidth;
+      const remainingHeight = remainingHeightOnBezel + glassThickness;
+      result.push(refracted[0] * (remainingHeight / refracted[1]));
+    }
+  }
+  return result;
+}
+function calculateDisplacementMap2D(canvasWidth, canvasHeight, objectWidth, objectHeight, radius, bezelWidth, maximumDisplacement, precomputedMap) {
+  const imageData = new ImageData(canvasWidth, canvasHeight);
+  for(let i=0;i<imageData.data.length;i+=4){
+    imageData.data[i]=128;imageData.data[i+1]=128;imageData.data[i+2]=0;imageData.data[i+3]=255;
+  }
+  const radiusSquared = radius * radius;
+  const radiusPlusOneSquared = (radius + 1) * (radius + 1);
+  const radiusMinusBezelSquared = Math.max(0, (radius - bezelWidth) * (radius - bezelWidth));
+  const widthBetweenRadiuses = objectWidth - radius * 2;
+  const heightBetweenRadiuses = objectHeight - radius * 2;
+  const objectX = (canvasWidth - objectWidth) / 2;
+  const objectY = (canvasHeight - objectHeight) / 2;
+  for (let y1 = 0; y1 < objectHeight; y1++) {
+    for (let x1 = 0; x1 < objectWidth; x1++) {
+      const idx = ((objectY + y1) * canvasWidth + objectX + x1) * 4;
+      const isOnLeftSide = x1 < radius;
+      const isOnRightSide = x1 >= objectWidth - radius;
+      const isOnTopSide = y1 < radius;
+      const isOnBottomSide = y1 >= objectHeight - radius;
+      const x = isOnLeftSide ? x1 - radius : isOnRightSide ? x1 - radius - widthBetweenRadiuses : 0;
+      const y = isOnTopSide ? y1 - radius : isOnBottomSide ? y1 - radius - heightBetweenRadiuses : 0;
+      const distanceToCenterSquared = x * x + y * y;
+      const isInBezel = distanceToCenterSquared <= radiusPlusOneSquared && distanceToCenterSquared >= radiusMinusBezelSquared;
+      if(isInBezel){
+        const opacity = distanceToCenterSquared < radiusSquared ? 1 : 1 - (Math.sqrt(distanceToCenterSquared) - Math.sqrt(radiusSquared)) / (Math.sqrt(radiusPlusOneSquared) - Math.sqrt(radiusSquared));
+        const distanceFromCenter = Math.sqrt(distanceToCenterSquared);
+        const distanceFromSide = radius - distanceFromCenter;
+        const cos = distanceFromCenter > 0 ? x / distanceFromCenter : 0;
+        const sin = distanceFromCenter > 0 ? y / distanceFromCenter : 0;
+        const bezelRatio = Math.max(0, Math.min(1, distanceFromSide / bezelWidth));
+        const bezelIndex = Math.floor(bezelRatio * precomputedMap.length);
+        const distance = precomputedMap[Math.max(0, Math.min(bezelIndex, precomputedMap.length - 1))] || 0;
+        const dX = maximumDisplacement > 0 ? (-cos * distance) / maximumDisplacement : 0;
+        const dY = maximumDisplacement > 0 ? (-sin * distance) / maximumDisplacement : 0;
+        imageData.data[idx] = Math.max(0, Math.min(255, 128 + dX * 127 * opacity));
+        imageData.data[idx+1] = Math.max(0, Math.min(255, 128 + dY * 127 * opacity));
+      }
+    }
+  }
+  return imageData;
+}
+function calculateSpecularHighlight(objectWidth, objectHeight, radius, bezelWidth, specularAngle = Math.PI / 3) {
+  const imageData = new ImageData(objectWidth, objectHeight);
+  const specularVector = [Math.cos(specularAngle), Math.sin(specularAngle)];
+  const specularThickness = 1.5;
+  const radiusSquared = radius * radius;
+  const radiusPlusOneSquared = (radius + 1) * (radius + 1);
+  const radiusMinusSpecularSquared = Math.max(0, (radius - specularThickness) * (radius - specularThickness));
+  const widthBetweenRadiuses = objectWidth - radius * 2;
+  const heightBetweenRadiuses = objectHeight - radius * 2;
+  for (let y1 = 0; y1 < objectHeight; y1++) {
+    for (let x1 = 0; x1 < objectWidth; x1++) {
+      const idx = (y1 * objectWidth + x1) * 4;
+      const isOnLeftSide = x1 < radius;
+      const isOnRightSide = x1 >= objectWidth - radius;
+      const isOnTopSide = y1 < radius;
+      const isOnBottomSide = y1 >= objectHeight - radius;
+      const x = isOnLeftSide ? x1 - radius : isOnRightSide ? x1 - radius - widthBetweenRadiuses : 0;
+      const y = isOnTopSide ? y1 - radius : isOnBottomSide ? y1 - radius - heightBetweenRadiuses : 0;
+      const distanceToCenterSquared = x * x + y * y;
+      const isNearEdge = distanceToCenterSquared <= radiusPlusOneSquared && distanceToCenterSquared >= radiusMinusSpecularSquared;
+      if(isNearEdge){
+        const distanceFromCenter = Math.sqrt(distanceToCenterSquared);
+        const distanceFromSide = radius - distanceFromCenter;
+        const opacity = distanceToCenterSquared < radiusSquared ? 1 : 1 - (distanceFromCenter - Math.sqrt(radiusSquared)) / (Math.sqrt(radiusPlusOneSquared) - Math.sqrt(radiusSquared));
+        const cos = distanceFromCenter > 0 ? x / distanceFromCenter : 0;
+        const sin = distanceFromCenter > 0 ? -y / distanceFromCenter : 0;
+        const dotProduct = Math.abs(cos * specularVector[0] + sin * specularVector[1]);
+        const edgeRatio = Math.max(0, Math.min(1, distanceFromSide / specularThickness));
+        const sharpFalloff = Math.sqrt(1 - (1 - edgeRatio) * (1 - edgeRatio));
+        const coefficient = dotProduct * sharpFalloff;
+        const color = Math.min(255, 255 * coefficient);
+        const finalOpacity = Math.min(255, color * coefficient * opacity);
+        imageData.data[idx]=color;imageData.data[idx+1]=color;imageData.data[idx+2]=color;imageData.data[idx+3]=finalOpacity;
+      }
+    }
+  }
+  return imageData;
+}
+function imageDataToDataURL(imageData) {
+  const canvas = document.createElement("canvas");
+  canvas.width = imageData.width; canvas.height = imageData.height;
+  const ctx = canvas.getContext("2d"); ctx.putImageData(imageData,0,0);
+  return canvas.toDataURL();
+}
+
+// 封装液态玻璃Switch
+function createLiquidGlassSwitch(containerEl, filterId, onChangeCallback, initialChecked = false){
+  const config = {
+    trackWidth: 160, trackHeight: 67, thumbWidth: 146, thumbHeight: 92, thumbRadius: 46,
+    bezelWidth: 19, glassThickness: 47, refractiveIndex: 1.5,
+    THUMB_REST_SCALE: 0.65, THUMB_ACTIVE_SCALE: 0.9
+  };
+  config.THUMB_REST_OFFSET = ((1 - config.THUMB_REST_SCALE) * config.thumbWidth) / 2;
+  config.TRAVEL = config.trackWidth - config.trackHeight - (config.thumbWidth - config.thumbHeight) * config.THUMB_REST_SCALE;
+
+  const state = { checked: !!initialChecked, pointerDown:false, initialPointerX:0, xDragRatio:0, specularOpacity:0.5, specularSaturation:6, refractionBase:1, blur:0.2, maximumDisplacement:0 };
+  const springs = {
+    xRatio: new Spring(0),
+    scale: new Spring(config.THUMB_REST_SCALE),
+    backgroundOpacity: new Spring(1),
+    trackColor: new Spring(0),
+    scaleRatio: new Spring(0.4,100,10)
+  };
+  let animId = null;
+
+  const thumb = containerEl.querySelector(".switch-thumb");
+  const track = containerEl.querySelector(".switch-track");
+  const cloneInner = containerEl.querySelector(".switch-thumb-clone-inner");
+  const svgDefs = document.getElementById(filterId).parentNode;
+  const displacementImg = svgDefs.querySelector("feImage[result='displacement_map']");
+  const specularImg = svgDefs.querySelector("feImage[result='specular_layer']");
+  const specularAlpha = svgDefs.querySelector("feFuncA");
+  const blurEl = svgDefs.querySelector("feGaussianBlur");
+  const saturateEl = svgDefs.querySelector("feColorMatrix[type='saturate']");
+  const dispMapEl = svgDefs.querySelector("feDisplacementMap");
+
+  function updateFilter(){
+    const surfFn = SurfaceEquations.convex_squircle;
+    const pre = calculateDisplacementMap1D(config.glassThickness, config.bezelWidth, surfFn, config.refractiveIndex);
+    state.maximumDisplacement = Math.max(...pre.map(Math.abs));
+    const dispData = calculateDisplacementMap2D(config.thumbWidth,config.thumbHeight,config.thumbWidth,config.thumbHeight,config.thumbRadius,config.bezelWidth,state.maximumDisplacement||1,pre);
+    const specData = calculateSpecularHighlight(config.thumbWidth,config.thumbHeight,config.thumbRadius,config.bezelWidth);
+    displacementImg.setAttribute("href", imageDataToDataURL(dispData));
+    specularImg.setAttribute("href", imageDataToDataURL(specData));
+    specularAlpha.setAttribute("slope", state.specularOpacity);
+    blurEl.setAttribute("stdDeviation", state.blur);
+    saturateEl.setAttribute("values", state.specularSaturation);
+  }
+  function getActive(){ return state.pointerDown; }
+  function loop(){
+    const dt = Math.min(0.032,1/60);
+    const active = getActive();
+    springs.scale.setTarget(active ? config.THUMB_ACTIVE_SCALE : config.THUMB_REST_SCALE);
+    springs.backgroundOpacity.setTarget(active ? 0.1 : 1);
+    springs.scaleRatio.setTarget(active ? 0.9 : 0.4);
+    if(!state.pointerDown) springs.xRatio.setTarget(state.checked ? 1 : 0);
+    const considerChecked = state.pointerDown ? (state.xDragRatio>0.5?1:0) : (state.checked?1:0);
+    springs.trackColor.setTarget(considerChecked);
+
+    const xRatio = springs.xRatio.update(dt);
+    const scale = springs.scale.update(dt);
+    const bgOpacity = springs.backgroundOpacity.update(dt);
+    const trackColorVal = springs.trackColor.update(dt);
+    const scaleRatio = springs.scaleRatio.update(dt);
+
+    const marginLeft = -config.THUMB_REST_OFFSET + (config.trackHeight - config.thumbHeight * config.THUMB_REST_SCALE)/2;
+    const thumbX = marginLeft + xRatio * config.TRAVEL;
+    thumb.style.left = thumbX + "px";
+    thumb.style.transform = `translateY(-50%) scale(${scale})`;
+    thumb.style.backgroundColor = `rgba(255,255,255,${bgOpacity})`;
+    thumb.style.boxShadow = state.pointerDown
+      ? "0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09)"
+      : "0 4px 22px rgba(0,0,0,0.1)";
+    cloneInner.style.opacity = 1 - bgOpacity;
+
+    const r = Math.round(148 + (59-148)*trackColorVal);
+    const g = Math.round(148 + (191-148)*trackColorVal);
+    const b = Math.round(159 + (78-159)*trackColorVal);
+    const a = 0.47 + (0.93-0.47)*trackColorVal;
+    track.style.backgroundColor = `rgba(${r},${g},${b},${a})`;
+    dispMapEl.setAttribute("scale", state.maximumDisplacement * scaleRatio);
+
+    const settled = Object.values(springs).every(s=>s.isSettled());
+    if(!settled){ animId = requestAnimationFrame(loop); } else animId=null;
+  }
+  function startAnim(){ if(!animId) animId = requestAnimationFrame(loop); }
+
+  function onDown(e){
+    e.preventDefault(); e.stopPropagation();
+    state.pointerDown = true;
+    const pt = e.touches ? e.touches[0] : e;
+    state.initialPointerX = pt.clientX;
+    state.xDragRatio = state.checked ? 1 : 0;
+    startAnim();
+  }
+  function onMove(e){
+    if(!state.pointerDown) return;
+    e.preventDefault();
+    const pt = e.touches ? e.touches[0] : e;
+    const dispX = pt.clientX - state.initialPointerX;
+    let ratio = (state.checked?1:0) + dispX / config.TRAVEL;
+    const overflow = ratio<0 ? -ratio : ratio>1 ? ratio-1 :0;
+    const sign = ratio<0?-1:1;
+    state.xDragRatio = Math.min(1,Math.max(0,ratio)) + sign*(overflow/22);
+    springs.xRatio.setTarget(state.xDragRatio);
+    startAnim();
+  }
+  function onUp(e){
+    if(!state.pointerDown) return;
+    state.pointerDown = false;
+    const pt = e.changedTouches ? e.changedTouches[0] : e;
+    const dist = Math.abs(pt.clientX - state.initialPointerX);
+    const old = state.checked;
+    if(dist<4){
+      state.checked = !state.checked;
+    }else{
+      state.checked = state.xDragRatio > 0.5;
+    }
+    if(old !== state.checked && onChangeCallback) onChangeCallback(state.checked);
+    startAnim();
+  }
+  thumb.addEventListener("mousedown",onDown);
+  thumb.addEventListener("touchstart",onDown,{passive:false});
+  track.addEventListener("click",(evt)=>{
+    if(evt.target===track){
+      const old = state.checked;
+      state.checked = !state.checked;
+      if(old!==state.checked && onChangeCallback) onChangeCallback(state.checked);
+      startAnim();
+    }
+  });
+  window.addEventListener("mousemove",onMove);
+  window.addEventListener("touchmove",onMove,{passive:false});
+  window.addEventListener("mouseup",onUp);
+  window.addEventListener("touchend",onUp);
+
+  updateFilter();
+  startAnim();
+
+  return {
+    setChecked(v){
+      const old = state.checked;
+      state.checked = !!v;
+      if(old!==state.checked && onChangeCallback) onChangeCallback(state.checked);
+      startAnim();
+    },
+    getChecked(){ return state.checked; }
+  };
+}
+
+// ========== 奶蛙业务逻辑 ==========
+const viewportContainer = document.getElementById('viewport-container');
+const video = document.getElementById('mainVideo');
+const btnLoop = document.getElementById('btnLoop');
+const btnOpenCard = document.getElementById('btnOpenCard');
+const cardModal = document.getElementById('cardModal');
+const closeCard = document.getElementById('closeCard');
+const btnOpenSet = document.getElementById('btnOpenSet');
+const settingPage = document.getElementById('settingPage');
+const setBack = document.getElementById('setBack');
+const uiScaleRange = document.getElementById('uiScaleRange');
+const switchScaleRange = document.getElementById('switchScaleRange');
+const bgOpacityRange = document.getElementById('bgOpacityRange');
+const bgBlurRange = document.getElementById('bgBlurRange');
+const bgButtons = document.querySelectorAll('.bg-btn');
+
+let isPlay = false;
+let wakeLock = null;
+let switchAudio = null;
+let switchPortrait = null;
+let switchMirror = null;
+let switchWake = null;
+let switchExperimental = null;
+let switchInited = false;
+
+/* 使用 localStorage 保存设置（替代 cookie，更加可靠） */
+const STORAGE_KEY = 'naifrog_settings';
+const defaultSettings = {
+  audio: true,
+  portrait: false,
+  mirror: false,
+  wake: false,
+  uiScale: 1,
+  switchScale: 1,
+  bgOpacity: 0.55,
+  bgBlur: 12,
+  experimentalGlass: false,
+  backgroundWhite: false
+};
+let settings = Object.assign({}, defaultSettings, loadSettings());
+
+function loadSettings() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (e) {
+    return {};
+  }
+}
+function saveSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+/* 判断横屏 */
+function isLandscape() {
+  return window.innerWidth > window.innerHeight;
+}
+
+/* 根据设置和方向更新 video 的 object-fit */
+function updateVideoFit() {
+  if (settings.portrait) {
+    video.classList.remove('mode-cover');
+    video.classList.add('mode-contain');
+  } else {
+    if (isLandscape()) {
+      video.classList.remove('mode-cover');
+      video.classList.add('mode-contain');
+    } else {
+      video.classList.remove('mode-contain');
+      video.classList.add('mode-cover');
+    }
+  }
+}
+
+/* 应用设置 */
+function applySettings() {
+  video.muted = !settings.audio;
+  if (settings.portrait) {
+    viewportContainer.classList.add('lock-portrait-mode');
+  } else {
+    viewportContainer.classList.remove('lock-portrait-mode');
+  }
+  updateVideoFit();
+  video.style.transform = settings.mirror ? 'scaleX(-1)' : 'scaleX(1)';
+  applyBackground();
+  document.documentElement.style.setProperty('--ui-scale', settings.uiScale);
+  document.documentElement.style.setProperty('--switch-scale', settings.switchScale);
+  document.documentElement.style.setProperty('--ui-bg-opacity', settings.bgOpacity);
+  document.documentElement.style.setProperty('--ui-bg-blur', settings.bgBlur + 'px');
+  if (settings.experimentalGlass) {
+    document.body.classList.add('glass-experimental');
+  } else {
+    document.body.classList.remove('glass-experimental');
+  }
+  uiScaleRange.value = settings.uiScale;
+  switchScaleRange.value = settings.switchScale;
+  bgOpacityRange.value = settings.bgOpacity;
+  bgBlurRange.value = settings.bgBlur;
+  updateBgButtons();
+}
+
+function applyBackground() {
+  const color = settings.backgroundWhite ? '#ffffff' : '#000000';
+  video.style.backgroundColor = color;
+  document.body.style.backgroundColor = color;
+}
+
+function updateBgButtons() {
+  bgButtons.forEach(btn => {
+    const isActive = (btn.dataset.bg === 'black' && !settings.backgroundWhite) ||
+                     (btn.dataset.bg === 'white' && settings.backgroundWhite);
+    btn.classList.toggle('active', isActive);
+  });
+}
+
+/* UI大小滑块 */
+uiScaleRange.addEventListener('input', () => {
+  settings.uiScale = parseFloat(uiScaleRange.value);
+  document.documentElement.style.setProperty('--ui-scale', settings.uiScale);
+  saveSettings();
+});
+
+/* 开关模块大小滑块 */
+switchScaleRange.addEventListener('input', () => {
+  settings.switchScale = parseFloat(switchScaleRange.value);
+  document.documentElement.style.setProperty('--switch-scale', settings.switchScale);
+  saveSettings();
+});
+
+/* 按钮背景透明度滑块 */
+bgOpacityRange.addEventListener('input', () => {
+  settings.bgOpacity = parseFloat(bgOpacityRange.value);
+  document.documentElement.style.setProperty('--ui-bg-opacity', settings.bgOpacity);
+  saveSettings();
+});
+
+/* 按钮背景模糊度滑块 */
+bgBlurRange.addEventListener('input', () => {
+  settings.bgBlur = parseInt(bgBlurRange.value);
+  document.documentElement.style.setProperty('--ui-bg-blur', settings.bgBlur + 'px');
+  saveSettings();
+});
+
+/* 背景切换 */
+bgButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    settings.backgroundWhite = (btn.dataset.bg === 'white');
+    applyBackground();
+    updateBgButtons();
+    saveSettings();
+  });
+});
+
+/* 循环按钮：播放中点击 -> 回到第一帧并暂停；暂停中点击 -> 播放 */
+btnLoop.onclick = () => {
+  if (isPlay) {
+    video.pause();
+    video.currentTime = 0;
+    isPlay = false;
+    btnLoop.classList.remove('spinning');
+  } else {
+    video.play().catch(() => {});
+    isPlay = true;
+    btnLoop.classList.add('spinning');
+  }
+};
+
+/* 卡包弹窗 */
+btnOpenCard.onclick = () => { cardModal.classList.add('show'); };
+closeCard.onclick = () => { cardModal.classList.remove('show'); };
+cardModal.onclick = e => { if(e.target === cardModal) cardModal.classList.remove('show'); };
+
+/* 卡片切换视频 */
+document.querySelectorAll('.card-item').forEach(el => {
+  el.onclick = () => {
+    const v = el.dataset.video;
+    if (v) {
+      video.src = v;
+      video.play().catch(() => {});
+      isPlay = true;
+      btnLoop.classList.add('spinning');
+    }
+    cardModal.classList.remove('show');
+  };
+});
+
+/* 卡包封面：加载第一帧 */
+function initCardThumbs() {
+  document.querySelectorAll('.card-item').forEach(card => {
+    const src = card.dataset.video;
+    const thumb = card.querySelector('.card-thumb');
+    if (!src || !thumb || thumb.querySelector('video')) return;
+    const tmpVideo = document.createElement('video');
+    tmpVideo.src = src;
+    tmpVideo.muted = true;
+    tmpVideo.playsInline = true;
+    tmpVideo.preload = 'auto';
+    tmpVideo.style.pointerEvents = 'none';
+    tmpVideo.addEventListener('loadeddata', () => {
+      tmpVideo.currentTime = 0.01;
+    });
+    tmpVideo.addEventListener('seeked', function onSeeked() {
+      tmpVideo.pause();
+      tmpVideo.removeEventListener('seeked', onSeeked);
+    });
+    tmpVideo.addEventListener('error', () => {
+      tmpVideo.remove();
+    });
+    thumb.appendChild(tmpVideo);
+    tmpVideo.load();
+  });
+}
+
+/* 设置页打开初始化开关 */
+btnOpenSet.onclick = () => {
+  settingPage.classList.add('show');
+  if (!switchInited) {
+    document.body.getBoundingClientRect();
+
+    switchAudio = createLiquidGlassSwitch(document.querySelector("#wrapAudio"), "filterAudio", (checked) => {
+      settings.audio = checked;
+      video.muted = !checked;
+      saveSettings();
+    }, settings.audio);
+
+    switchPortrait = createLiquidGlassSwitch(document.querySelector("#wrapPortrait"), "filterPortrait", (checked) => {
+      settings.portrait = checked;
+      if (checked) {
+        viewportContainer.classList.add("lock-portrait-mode");
+      } else {
+        viewportContainer.classList.remove("lock-portrait-mode");
+      }
+      updateVideoFit();
+      saveSettings();
+    }, settings.portrait);
+
+    switchMirror = createLiquidGlassSwitch(document.querySelector("#wrapMirror"), "filterMirror", (checked) => {
+      settings.mirror = checked;
+      video.style.transform = checked ? "scaleX(-1)" : "scaleX(1)";
+      saveSettings();
+    }, settings.mirror);
+
+    switchWake = createLiquidGlassSwitch(document.querySelector("#wrapWake"), "filterWake", async (checked) => {
+      settings.wake = checked;
+      if (checked) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          saveSettings();
+        } catch (err) {
+          alert("浏览器不支持屏幕常亮或请求失败");
+          settings.wake = false;
+          saveSettings();
+          switchWake.setChecked(false);
+        }
+      } else {
+        if (wakeLock) await wakeLock.release();
+        wakeLock = null;
+        saveSettings();
+      }
+    }, settings.wake);
+
+    switchExperimental = createLiquidGlassSwitch(document.querySelector("#wrapExperimental"), "filterExperimental", (checked) => {
+      settings.experimentalGlass = checked;
+      if (checked) {
+        document.body.classList.add('glass-experimental');
+      } else {
+        document.body.classList.remove('glass-experimental');
+      }
+      saveSettings();
+    }, settings.experimentalGlass);
+
+    switchInited = true;
+  }
+};
+
+setBack.onclick = () => settingPage.classList.remove('show');
+
+/* 监听窗口方向变化，更新视频适应模式 */
+window.addEventListener('resize', () => {
+  updateVideoFit();
+});
+window.addEventListener('orientationchange', () => {
+  setTimeout(updateVideoFit, 100);
+});
+
+/* 初始化 */
+applySettings();
+initCardThumbs();
+
+/* 如果屏幕常亮设置曾为true，尝试激活 */
+if (settings.wake && navigator.wakeLock) {
+  navigator.wakeLock.request('screen')
+    .then(lock => { wakeLock = lock; })
+    .catch(() => {
+      settings.wake = false;
+      saveSettings();
+    });
+}
+</script>
+</body>
+</html>
