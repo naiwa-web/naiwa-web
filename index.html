@@ -374,7 +374,7 @@ body.glass-experimental .pill-btn span {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.1.4</i>
+      <i>v0.1.5</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -1318,17 +1318,128 @@ if (settings.wake && navigator.wakeLock) {
 }
 
  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
-      if (settingPage.classList.contains('show')) {
-        settingPage.classList.remove('show');
-        return;
-      }
-      if (cardModal.classList.contains('show')) {
-        cardModal.classList.remove('show');
-        return;
-      }
+  if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
+    if (settingPage.classList.contains('show')) {
+      closeSettingPage();
+      history.back();      // 与安卓返回键一致
+      return;
     }
-  });
+    if (cardModal.classList.contains('show')) {
+      closeCardModal();
+      history.back();
+    }
+  }
+});
+
+  // ===== 安卓返回键 + 滑动返回（安全版，不覆盖已有变量） =====
+let overlayHistory = null;
+
+function pushOverlayHistory(state) {
+  overlayHistory = state;
+  history.pushState({ overlay: state }, '');
+}
+
+function closeSettingPage() {
+  settingPage.classList.remove('show');
+  overlayHistory = null;
+}
+
+function closeCardModal() {
+  cardModal.classList.remove('show');
+  overlayHistory = null;
+}
+
+// 监听浏览器/安卓返回键
+window.addEventListener('popstate', function(e) {
+  const state = e.state;
+  if (state && state.overlay === 'setting') {
+    closeSettingPage();
+  } else if (state && state.overlay === 'card') {
+    closeCardModal();
+  } else {
+    // 确保所有界面关闭
+    settingPage.classList.remove('show');
+    cardModal.classList.remove('show');
+  }
+  overlayHistory = null;
+});
+
+// 修改打开卡包弹窗的逻辑
+const originalOpenCard = btnOpenCard.onclick;
+btnOpenCard.onclick = () => {
+  cardModal.classList.add('show');
+  pushOverlayHistory('card');
+  if (originalOpenCard) originalOpenCard();
+};
+
+// 修改打开设置页的逻辑
+const originalOpenSet = btnOpenSet.onclick;
+btnOpenSet.onclick = () => {
+  settingPage.classList.add('show');
+  pushOverlayHistory('setting');
+  if (originalOpenSet) originalOpenSet();
+};
+
+// 修改关闭按钮
+const originalCloseCard = closeCard.onclick;
+closeCard.onclick = () => {
+  closeCardModal();
+  history.back();
+  if (originalCloseCard) originalCloseCard();
+};
+
+const originalSetBack = setBack.onclick;
+setBack.onclick = () => {
+  closeSettingPage();
+  history.back();
+  if (originalSetBack) originalSetBack();
+};
+
+// 设置页左边缘右滑返回
+let setTouchStartX = 0, setTouchStartY = 0, setSwiping = false;
+settingPage.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  setTouchStartX = t.clientX;
+  setTouchStartY = t.clientY;
+  setSwiping = true;
+}, { passive: true });
+
+settingPage.addEventListener('touchmove', (e) => {
+  if (!setSwiping) return;
+  const t = e.touches[0];
+  const dx = t.clientX - setTouchStartX;
+  const dy = t.clientY - setTouchStartY;
+  if (setTouchStartX < 40 && dx > 80 && Math.abs(dx) > Math.abs(dy)) {
+    closeSettingPage();
+    history.back();
+    setSwiping = false;
+  }
+}, { passive: true });
+
+settingPage.addEventListener('touchend', () => { setSwiping = false; });
+
+// 卡包弹窗向下滑动关闭
+let cardStartY = 0, cardStartX = 0, cardSwiping = false;
+cardModal.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  cardStartY = t.clientY;
+  cardStartX = t.clientX;
+  cardSwiping = true;
+}, { passive: true });
+
+cardModal.addEventListener('touchmove', (e) => {
+  if (!cardSwiping) return;
+  const t = e.touches[0];
+  const dy = t.clientY - cardStartY;
+  const dx = t.clientX - cardStartX;
+  if (dy > 80 && Math.abs(dy) > Math.abs(dx)) {
+    closeCardModal();
+    history.back();
+    cardSwiping = false;
+  }
+}, { passive: true });
+
+cardModal.addEventListener('touchend', () => { cardSwiping = false; });
 </script>
 </body>
 </html>
