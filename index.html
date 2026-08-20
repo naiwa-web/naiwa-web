@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <!-- <link rel="manifest" href="manifest.json"> -->
-<link rel="icon" href="AppIcon76x76@2x~ipad.png" type="image/png">
+<link rel="icon" type="image/png" href="./AppIcon76x76@2x~ipad.png">
 <title>奶蛙</title>
 <style>
 /* ========== 基础样式 ========== */
@@ -50,17 +50,28 @@ body{
   aspect-ratio:9/16;
   margin:0 auto;
 }
-#mainVideo{
-  position:absolute;
-  left:0; top:0;
-  width:100%; height:100%;
-  background:#000;
-  z-index:1;
-  object-position:center;
-  transition: background-color .3s;
+#mainVideo,
+#reverseVideo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: #00000000;
+  z-index: 1;
+  object-position: center;
+  transition: background-color 0.3s;
 }
-#mainVideo.mode-cover{ object-fit:cover; }
-#mainVideo.mode-contain{ object-fit:contain; }
+
+#mainVideo.mode-cover,
+#reverseVideo.mode-cover {
+  object-fit: cover;
+}
+#mainVideo.mode-contain,
+#reverseVideo.mode-contain {
+  object-fit: contain;
+}
+
 
 /* 底部 UI */
 .bottom-ui{
@@ -104,6 +115,9 @@ body{
   height:calc(72px * var(--ui-scale));
   border-radius:50%;
   font-size:calc(24px * var(--ui-scale));
+  min-width: 56px;
+  min-height: 56px;
+  flex-shrink: 0;
 }
 @keyframes spinSlow{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 .circle-btn.spinning .icon-loop{ animation:spinSlow 3s linear infinite; }
@@ -325,7 +339,9 @@ body.glass-experimental .pill-btn span {
 </head>
 <body>
 <div id="viewport-container">
-  <video id="mainVideo" class="mode-cover" src="a1-glimpse.mp4" loop playsinline></video>
+  <video id="mainVideo" class="mode-cover" src="a1-glimpse.mp4" playsinline></video>
+  <!-- 新增倒放专用视频（默认隐藏） -->
+  <video id="reverseVideo" class="mode-cover" style="display:none;" loop playsinline></video>
   <div class="bottom-ui" id="bottomUi">
   <button class="circle-btn" id="btnStopRewind">
   <span>🚫</span>
@@ -446,7 +462,7 @@ body.glass-experimental .pill-btn span {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.2.6</i>
+      <i>v0.3.0</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -1259,10 +1275,18 @@ cardModal.onclick = e => { if (e.target === cardModal) cardModal.classList.remov
 document.querySelectorAll('.card-item').forEach(el => {
   el.onclick = () => {
     const v = el.dataset.video;
-    if (v) { video.src = v; video.play().catch(() => {}); isPlay = true; btnLoop.classList.add('spinning'); }
+    if (v) {
+      if (rewindMode) exitRewindMode(); // 关键：先退出倒放
+      video.src = v;
+      video.play().catch(() => {});
+      isPlay = true;
+      btnLoop.classList.add('spinning');
+      btnLoop.querySelector('.icon-loop').textContent = '🚫';
+    }
     cardModal.classList.remove('show');
   };
 });
+
 
 // 设置页打开初始化
 btnOpenSet.onclick = () => {
@@ -1545,90 +1569,175 @@ function getReverseSrc(originalSrc) {
   return originalSrc.split('?')[0].replace(/\.mp4$/, '-reverse.mp4');
 }
 
-// ===== 倒放模式（最终稳定版） =====
-let rewindMode = false;
-let rewindSeeking = false;      // 防止重复 seek
-let rewindAnimId = null;        // 备用 timeout id
+// ===== 倒放模式（最终修复版：无闪烁、自动退出、可再次倒放） =====
+let rewindMode = false;          // 是否处于倒放模式
+let isReversePlaying = false;    // 当前显示的是否是 reverseVideo
+let originalVideoSrc = '';
+let reverseVideoSrc = '';
+let pendingSwitch = false;       // 防止切换冲突
+let isExiting = false;           // 防止退出流程重复触发
+
 const btnStopRewind = document.getElementById('btnStopRewind');
 const bottomUi = document.getElementById('bottomUi');
+const mainVideo = document.getElementById('mainVideo');
+const reverseVideo = document.getElementById('reverseVideo');
 
-function enterRewindMode() {
-  if (rewindMode || !isPlay || video.currentTime < 0.1) return;
+// 确保倒放视频不循环
+reverseVideo.loop = false;
 
-  // 检查当前视频是否有 reverse 版本
-  const reverseSrc = getReverseSrc(video.src);
-  // 快速检查文件是否存在（通过 Image 或 fetch HEAD 请求，但同目录下可用 video 探测）
-  // 这里使用一个简单的 fetch HEAD 请求（仅在本地服务器下有效）
-  fetch(reverseSrc, { method: 'HEAD' })
-    .then(res => {
-      if (!res.ok) {
-        console.warn('[倒放] 没有找到倒放版本，禁止倒放:', reverseSrc);
-        return;
-      }
-      // 存在，继续进入倒放模式
-      proceedEnterRewind();
-    })
-    .catch(() => {
-      console.warn('[倒放] 无法检测倒放版本，禁止倒放');
-    });
+// 支持倒放的视频白名单
+const rewindableVideos = new Set([
+  'a1-glimpse.mp4', 'a2-turtle.mp4', 'a3-angel.mp4', 'a4-meditation.mp4',
+  'a5-flexible.mp4', 'a6-pass.mp4', 'a7-pet.mp4', 'a8-taiji.mp4',
+  'b1-police.mp4', 'b2-apple.mp4', 'b3-egg.mp4', 'b4-sad.mp4',
+  'b5-legend.mp4', 'b6-born.mp4', 'b7-arrive.mp4'
+]);
+
+function getReverseSrc(originalSrc) {
+  const clean = originalSrc.split('?')[0];
+  return clean.replace(/\.mp4$/, '-reverse.mp4');
 }
 
-function proceedEnterRewind() {
-  if (rewindMode || !isPlay) return;
+function canRewind() {
+  const filename = mainVideo.src.split('/').pop().split('?')[0];
+  return rewindableVideos.has(filename);
+}
+
+// 切换到 reverseVideo 并开始倒放
+function switchToReverse() {
+  if (pendingSwitch || isExiting) return;
+  pendingSwitch = true;
+  mainVideo.pause();
+  const origTime = mainVideo.currentTime;
+  reverseVideo.src = reverseVideoSrc;
+  reverseVideo.className = mainVideo.className; // 同步 object-fit
+  reverseVideo.load();
+
+  reverseVideo.addEventListener('loadedmetadata', function onMeta() {
+    reverseVideo.removeEventListener('loadedmetadata', onMeta);
+    reverseVideo.currentTime = reverseVideo.duration - origTime;
+    reverseVideo.muted = false;
+    reverseVideo.play().catch(() => { pendingSwitch = false; });
+  }, { once: true });
+
+  reverseVideo.addEventListener('playing', function onPlaying() {
+    reverseVideo.removeEventListener('playing', onPlaying);
+    reverseVideo.style.display = 'block';
+    mainVideo.style.display = 'none';
+    isReversePlaying = true;
+    pendingSwitch = false;
+  }, { once: true });
+}
+
+// 切换到 mainVideo 并正常播放（用于临时正放）
+function switchToMainForPlay() {
+  if (pendingSwitch || isExiting) return;
+  pendingSwitch = true;
+  const reverseTime = reverseVideo.currentTime;
+  const mainTime = mainVideo.duration - reverseTime;
+  mainVideo.currentTime = mainTime;
+  reverseVideo.pause();
+  reverseVideo.style.display = 'none';
+  mainVideo.style.display = 'block';
+  mainVideo.muted = !settings.audio;
+  mainVideo.play().catch(() => { pendingSwitch = false; });
+  isReversePlaying = false;
+  pendingSwitch = false;
+}
+
+// 进入倒放模式
+function enterRewindMode() {
+  if (rewindMode || pendingSwitch || isExiting || !isPlay || mainVideo.currentTime < 0.1) return;
+  if (!canRewind()) {
+    console.warn('[倒放] 该视频无倒放版本');
+    return;
+  }
+
   rewindMode = true;
   bottomUi.classList.add('rewind-mode');
   btnLoop.classList.remove('spinning');
   btnLoop.querySelector('.icon-loop').textContent = '♻️';
 
-  originalVideoSrc = video.src;
+  originalVideoSrc = mainVideo.src;
   reverseVideoSrc = getReverseSrc(originalVideoSrc);
-  videoDuration = video.duration;
+  mainVideo.pause();
+  switchToReverse();
+}
 
-  const origTime = video.currentTime;
-  video.src = reverseVideoSrc;
-  video.load();
-  isSwitchingVideo = true;
+// 退出倒放模式（内部实现，预加载主视频第一帧，消除闪烁）
+function finalizeExitRewind() {
+  // 停止并隐藏倒放视频
+  reverseVideo.pause();
+  reverseVideo.removeAttribute('src');
+  reverseVideo.load();
+  reverseVideo.style.display = 'none';
+  reverseVideo.className = 'mode-cover';
 
-  video.addEventListener('loadedmetadata', function onLoaded() {
-    video.removeEventListener('loadedmetadata', onLoaded);
-    const reverseTime = video.duration - origTime;
-    video.currentTime = reverseTime;
-    video.muted = false;
-    video.play().catch(() => {});
-    isSwitchingVideo = false;
-  }, { once: true });
+  // 显示主视频（已经 seek 到 0）
+  mainVideo.style.display = 'block';
+  mainVideo.pause();
+  mainVideo.muted = !settings.audio;
+
+  rewindMode = false;
+  isReversePlaying = false;
+  pendingSwitch = false;
+  isExiting = false;
+  isPlay = false;
 }
 
 function exitRewindMode() {
-  rewindMode = false;
+  if (!rewindMode || isExiting) return;
+  isExiting = true;
+
   bottomUi.classList.remove('rewind-mode');
-  video.muted = !settings.audio;
-  video.pause();
-  video.currentTime = 0;
-  isPlay = false;
   btnLoop.classList.remove('spinning');
   btnLoop.querySelector('.icon-loop').textContent = '♻️';
-}
 
-function stepRewind() {
-  if (!rewindMode) return;
-  if (rewindSeeking) return; // 上一次 seek 还没完成
-  const newTime = video.currentTime - 0.1;
-  if (newTime <= 0.05) {
-    // 倒放完毕：自动退出倒放模式并回到第一帧
-    video.currentTime = 0;
-    exitRewindMode();
-    return;
+  // 隐藏两个视频，准备 seek 主视频到 0
+  reverseVideo.pause();
+  reverseVideo.style.display = 'none';
+  mainVideo.style.display = 'none';
+  mainVideo.pause();
+  mainVideo.currentTime = 0;
+  mainVideo.muted = !settings.audio;
+
+  // 等待 seek 完成
+  if (Math.abs(mainVideo.currentTime) < 0.01) {
+    finalizeExitRewind();
+  } else {
+    mainVideo.addEventListener('seeked', function onSeeked() {
+      mainVideo.removeEventListener('seeked', onSeeked);
+      finalizeExitRewind();
+    }, { once: true });
   }
-  rewindSeeking = true;
-  video.currentTime = newTime;
 }
 
-// 监听 seek 完成事件，继续下一步倒放
-video.addEventListener('seeked', () => {
-  if (rewindMode && rewindSeeking) {
-    rewindSeeking = false;
-    stepRewind(); // 继续回退
+// 倒放模式下点击左侧：继续倒放
+function continueRewind() {
+  if (!rewindMode || pendingSwitch || isExiting) return;
+  if (!isReversePlaying) {
+    switchToReverse();
+  } else {
+    reverseVideo.muted = false;
+    reverseVideo.play().catch(() => {});
+  }
+}
+
+// 倒放模式下点击右侧：恢复正常播放
+function resumeNormalPlay() {
+  if (!rewindMode || pendingSwitch || isExiting) return;
+  if (isReversePlaying) {
+    switchToMainForPlay();
+  } else {
+    mainVideo.muted = !settings.audio;
+    mainVideo.play().catch(() => {});
+  }
+}
+
+// 倒放视频播放到开头时自动退出
+reverseVideo.addEventListener('timeupdate', () => {
+  if (rewindMode && isReversePlaying && !isExiting && reverseVideo.currentTime <= 0.05) {
+    exitRewindMode();
   }
 });
 
@@ -1648,7 +1757,7 @@ btnLoop.onclick = () => {
   if (originalBtnLoopClick) originalBtnLoopClick();
 };
 
-// 屏幕点击处理：左半部分倒放，右半部分正常播放
+// 屏幕点击处理
 function handleScreenTap(e) {
   if (e.target.closest('.bottom-ui')) return;
   if (settingPage.classList.contains('show') || cardModal.classList.contains('show')) return;
@@ -1658,24 +1767,26 @@ function handleScreenTap(e) {
   const isLeft = x < rect.width / 2;
 
   if (!rewindMode) {
-    if (isLeft && isPlay) enterRewindMode();
+    if (isLeft) {
+      if (isPlay) {
+        enterRewindMode();
+      } else {
+        mainVideo.play().catch(() => {});
+        isPlay = true;
+        btnLoop.classList.add('spinning');
+        btnLoop.querySelector('.icon-loop').textContent = '🚫';
+      }
+    }
   } else {
     if (isLeft) {
-      video.muted = true;
-      video.pause();
-      rewindSeeking = false; // 重置 seek 状态
-      stepRewind();          // 继续倒放
+      continueRewind();
     } else {
-      // 恢复正常播放
-      rewindSeeking = false;
-      video.muted = !settings.audio;
-      video.playbackRate = 1;
-      video.play().catch(() => {});
+      resumeNormalPlay();
     }
   }
 }
 
-// 监听视频区域点击
+// 监听点击
 viewportContainer.addEventListener('click', function(e) {
   if (settingPage.classList.contains('show') || cardModal.classList.contains('show')) return;
   handleScreenTap(e);
