@@ -455,7 +455,6 @@ body.glass-experimental .pill-btn {
 </div>
 
 <script>
-// 检测是否为移动端
 (function() {
   // 1. 更可靠的移动端检测（结合 UA 和 touch 支持）
   function isMobile() {
@@ -514,12 +513,6 @@ body.glass-experimental .pill-btn {
   document.addEventListener('touchstart', tryAutoFullscreen, { once: true, passive: true });
   document.addEventListener('click', tryAutoFullscreen, { once: true });
 })();
-
-// 首次触摸或点击时触发（必须在用户手势中）
-document.addEventListener('touchstart', tryEnterFullscreen, { once: true, passive: true });
-document.addEventListener('click', tryEnterFullscreen, { once: true });
-document.addEventListener('touchstart', tryEnterFullscreen, { once: true, passive: true });
-document.addEventListener('click', tryEnterFullscreen, { once: true });
 // ==================== 液态玻璃工具函数 ====================
 const SurfaceEquations = {
   convex_circle: (x) => Math.sqrt(1 - Math.pow(1 - x, 2)),
