@@ -331,10 +331,7 @@ body.glass-experimental .pill-btn span {
   border-radius: 50%;
   font-size: calc(24px * var(--ui-scale));
 }
-.bottom-ui.rewind-mode #btnLoop {
-  background-color: rgba(59, 191, 78, 0.8);
-  transition: background-color 0.3s;
-}
+
 button:active {
   transform: scale(0.93);
   transition: transform 0.1s;
@@ -380,11 +377,10 @@ button:active {
   color: #333;
 }
 .mirror-source-close {
-  background: none;
+  width:34px; height:34px; border-radius:50%;
+  background:#eee; border:none; font-size:18px; color:#666;
   border: none;
-  font-size: 20px;
   cursor: pointer;
-  color: #666;
 }
 .mirror-source-list {
   display: flex;
@@ -548,7 +544,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.5</i>
+      <i>v0.3.7</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -713,13 +709,12 @@ button:active {
       </div>
       <div>
         <i>*视频资源提取自
-             <a href="https://apps.apple.com/cn/app/%E5%A5%B6%E8%9B%99-%E7%82%B9%E4%B8%80%E4%B8%8B%E5%B0%B1%E7%8B%82%E7%AC%91%E6%8A%BD%E8%B1%A1%E9%AD%94%E6%80%A7/id6761310915">奶蛙APP🔗</a>
+             <a href="https://apps.apple.com/cn/app/%E5%A5%B6%E8%9B%99-%E7%82%B9%E4%B8%80%E4%B8%8B%E5%B0%B1%E7%8B%82%E7%AC%91%E6%8A%BD%E8%B1%A1%E9%AD%94%E6%80%A7/id6761310915">奶蛙APP</a>
         <i>。</i>
         </i>
     </div>
-          <div><a href="https://github.com/naiwa-web/naiwa-web.github.io" style="color:#ffffff00;"><i style="color:#ffffff00;">*Github Page🔗</i></a></div>
+          <div><a href="https://github.com/naiwa-web/naiwa-web.github.io"><i>*Github Page</i></a></div>
           <div style="color:#ffffff00;"><i>*0.3.5 final release <a href="./nw_beta1.html" style="color:#ffffff00;">0.1.2 old page🔗</a>。</i></div>
-          <div style="color:#ffffff00;">居然被发现了 qwq</div>
       
   </div>
 </div>
@@ -1758,7 +1753,7 @@ function switchToReverse() {
   mainVideo.pause();
   const origTime = mainVideo.currentTime;
   reverseVideo.src = reverseVideoSrc;
-  reverseVideo.className = mainVideo.className; // 同步 object-fit
+  reverseVideo.className = mainVideo.className;
   reverseVideo.load();
 
   reverseVideo.addEventListener('loadedmetadata', function onMeta() {
@@ -1769,40 +1764,54 @@ function switchToReverse() {
   }, { once: true });
 
   reverseVideo.addEventListener('playing', function onPlaying() {
-    reverseVideo.removeEventListener('playing', onPlaying);
-    reverseVideo.style.display = 'block';
-    mainVideo.style.display = 'none';
-    isReversePlaying = true;
-    pendingSwitch = false;
-  }, { once: true });
+  reverseVideo.removeEventListener('playing', onPlaying);
+  // 先显示倒放视频，再隐藏主视频
+  reverseVideo.style.display = 'block';
+  mainVideo.style.display = 'none';
+  isReversePlaying = true;
+  pendingSwitch = false;
+}, { once: true });
 }
 
-// 切换到 mainVideo 并正常播放（用于临时正放）
 function switchToMainForPlay() {
   if (pendingSwitch || isExiting) return;
   pendingSwitch = true;
   const reverseTime = reverseVideo.currentTime;
   const mainTime = mainVideo.duration - reverseTime;
 
-  // 先暂停并隐藏两个视频，避免显示任何旧帧
+  // 暂停 reverseVideo，但保持显示，避免空白
   reverseVideo.pause();
-  reverseVideo.style.display = 'none';
-  mainVideo.pause();
-  mainVideo.style.display = 'none';
-  mainVideo.muted = !settings.audio;
 
-  // 设置主视频时间，等待 seek 完成
+  // 设置主视频时间，先不显示
+  mainVideo.muted = !settings.audio;
   mainVideo.currentTime = mainTime;
 
+  // 等待 seek 完成后，先显示主视频，再隐藏 reverseVideo
   mainVideo.addEventListener('seeked', function onSeeked() {
     mainVideo.removeEventListener('seeked', onSeeked);
-    // seek 完成后才显示并播放
-    mainVideo.style.display = 'block';
-    mainVideo.play().catch(() => { pendingSwitch = false; });
+    mainVideo.style.display = 'block';      // 先显示主视频
+    reverseVideo.style.display = 'none';    // 再隐藏倒放视频
+    mainVideo.play().catch(() => {});
     isReversePlaying = false;
     pendingSwitch = false;
   }, { once: true });
+
+  // 超时兜底：200ms 后如果 seeked 未触发，强制切换
+  setTimeout(() => {
+    if (pendingSwitch) {
+      mainVideo.removeEventListener('seeked', onSeeked);
+      mainVideo.style.display = 'block';
+      reverseVideo.style.display = 'none';
+      mainVideo.play().catch(() => {});
+      isReversePlaying = false;
+      pendingSwitch = false;
+    }
+  }, 200);
 }
+
+
+
+
 // 进入倒放模式
 function enterRewindMode() {
   if (rewindMode || pendingSwitch || isExiting || !isPlay || mainVideo.currentTime < 0.1) return;
@@ -1851,23 +1860,24 @@ function exitRewindMode() {
   btnLoop.classList.remove('spinning');
   btnLoop.querySelector('.icon-loop').textContent = '♻️';
 
-  // 隐藏两个视频，准备 seek 主视频到 0
+  // 停止并隐藏倒放视频
   reverseVideo.pause();
+  reverseVideo.removeAttribute('src');
+  reverseVideo.load();
   reverseVideo.style.display = 'none';
-  mainVideo.style.display = 'none';
+  reverseVideo.className = 'mode-cover';
+
+  // 立即显示主视频（当前暂停帧）
+  mainVideo.style.display = 'block';
   mainVideo.pause();
-  mainVideo.currentTime = 0;
+  mainVideo.currentTime = 0;   // 跳回第一帧
   mainVideo.muted = !settings.audio;
 
-  // 等待 seek 完成
-  if (Math.abs(mainVideo.currentTime) < 0.01) {
-    finalizeExitRewind();
-  } else {
-    mainVideo.addEventListener('seeked', function onSeeked() {
-      mainVideo.removeEventListener('seeked', onSeeked);
-      finalizeExitRewind();
-    }, { once: true });
-  }
+  rewindMode = false;
+  isReversePlaying = false;
+  pendingSwitch = false;
+  isExiting = false;
+  isPlay = false;
 }
 
 // 倒放模式下点击左侧：继续倒放
@@ -1955,21 +1965,7 @@ viewportContainer.addEventListener('touchstart', function(e) {
   if (touch) handleScreenTap({ clientX: touch.clientX, target: e.target });
 }, { passive: true });
 
-let seekTimeout = setTimeout(() => {
-  mainVideo.removeEventListener('seeked', onSeeked);
-  mainVideo.style.display = 'block';
-  mainVideo.play().catch(() => {});
-  isReversePlaying = false;
-  pendingSwitch = false;
-}, 200); // 200ms 后强制显示，避免卡死
-mainVideo.addEventListener('seeked', function onSeeked() {
-  clearTimeout(seekTimeout);
-  mainVideo.removeEventListener('seeked', onSeeked);
-  mainVideo.style.display = 'block';
-  mainVideo.play().catch(() => {});
-  isReversePlaying = false;
-  pendingSwitch = false;
-}, { once: true });
+
 
 // 设置目标日期：修改这里为你的截止时间
 const endDate = new Date('2026-12-31 23:59:59').getTime();
