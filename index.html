@@ -544,7 +544,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.4.1</i>
+      <i>v0.4.1fix</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -1477,7 +1477,7 @@ const defaultSettings = {
   switchSaturation: 6,
   mirrorSource: 'https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/',  // 默认第一个源
   useMirror: false,
-  preload: true
+  preload: true,
   vConsoleEnabled: false,   // 调试面板开关
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
@@ -1534,6 +1534,11 @@ function applySettings() {
   updateBgButtons();
   if (settings.preload) {
   preloadAllCardVideos();
+}
+  if (settings.vConsoleEnabled) {
+  loadVConsole();
+} else {
+  unloadVConsole();
 }
 }
 
@@ -1620,6 +1625,20 @@ btnOpenSet.onclick = () => {
     }
   },
   settings.preload
+);
+
+switchVConsole = createLiquidGlassSwitch(
+  document.querySelector("#wrapVConsole"), "filterVConsole",
+  (checked) => {
+    settings.vConsoleEnabled = checked;
+    saveSettings();
+    if (checked) {
+      loadVConsole();
+    } else {
+      unloadVConsole();
+    }
+  },
+  settings.vConsoleEnabled
 );
 
 
