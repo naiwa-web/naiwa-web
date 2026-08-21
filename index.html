@@ -339,6 +339,73 @@ button:active {
   transform: scale(0.93);
   transition: transform 0.1s;
 }
+/* 镜像源选择弹窗 */
+.mirror-source-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.mirror-source-modal.show {
+  display: flex;
+}
+.mirror-source-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+}
+.mirror-source-panel {
+  position: relative;
+  width: 90%;
+  max-width: 560px;          /* 原来 400px，改为 560px */
+  background: rgba(255,255,255,0.95);
+  border-radius: 24px;       /* 稍微增大圆角 */
+  padding: 28px 24px;        /* 增加内边距 */
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  animation: mirror-panel-in 0.3s ease;
+}
+@keyframes mirror-panel-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.mirror-source-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  font-weight: 600;
+  color: #333;
+}
+.mirror-source-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+.mirror-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mirror-source-item {
+  padding: 14px 18px;        /* 增大内边距 */
+  background: #f5f5f7;
+  border: 1px solid #e0e0e0;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 16px;           /* 原 15px，改为 16px */
+  color: #333;
+  transition: all 0.2s;
+}
+.mirror-source-item:hover {
+  background: #e8f4ff;
+  border-color: #3b9eff;
+}
 </style>
 </head>
 <body>
@@ -460,14 +527,30 @@ button:active {
       </div>
     </div>
   </div>
-
+    <!-- 镜像源选择弹窗 -->
+<div id="mirrorSourceModal" class="mirror-source-modal">
+  <div class="mirror-source-backdrop"></div>
+  <div class="mirror-source-panel">
+    <div class="mirror-source-header">
+      <span>选择镜像源</span>
+      <button class="mirror-source-close" id="mirrorSourceClose">✕</button>
+    </div>
+    <div class="mirror-source-list">
+      <button class="mirror-source-item" data-source="https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">cdn.gh-proxy.org</button>
+      <button class="mirror-source-item" data-source="https://ghm.078465.xyz/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghm.078465.xyz</button>
+      <button class="mirror-source-item" data-source="https://github.tbap.top/https://github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">github.tbap.top</button>
+      <button class="mirror-source-item" data-source="https://ghproxy.net/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghproxy.net</button>
+    </div>
+  </div>
+</div>
   <!-- 设置页面（完整结构） -->
   <div id="settingPage">
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.3</i>
+      <i>v0.3.4b</i>
     </div>
+
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
       <!-- 开启音频 Switch -->
@@ -1235,7 +1318,8 @@ const defaultSettings = {
   switchRefractionBoost: 1.5,
   switchBlur: 0.2,
   switchSaturation: 6,
-  useMirror: false,
+  mirrorSource: 'https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/',  // 默认第一个源
+  useMirror: false,   // 如果之前没有则添加
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
 
@@ -1356,9 +1440,11 @@ btnOpenSet.onclick = () => {
   (checked) => {
     settings.useMirror = checked;
     saveSettings();
-    // 简单处理：更改镜像开关后刷新页面以应用新视频源
-    // 可以留空，让用户手动刷新；也可以直接提示刷新
-    if (confirm('镜像开关已更改，是否刷新页面以应用新视频源？')) {
+    if (checked) {
+      // 打开弹窗让用户选择源
+      showMirrorSourceModal();
+    } else {
+      // 关闭镜像，刷新页面应用回本地相对路径
       location.reload();
     }
   },
@@ -1616,10 +1702,10 @@ document.addEventListener('touchstart', handleOutsideTap, { passive: true });
 
 // 根据文件名生成实际的媒体 URL（考虑镜像开关）
 function getMediaUrl(filename) {
-  if (settings.useMirror) {
-    return `https://ghproxy.net/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/${filename}`;
+  if (settings.useMirror && settings.mirrorSource) {
+    return settings.mirrorSource + filename;
   }
-  return filename; // 直接使用相对路径
+  return filename;
 }
 
 function getReverseSrc(originalSrc) {
@@ -1901,36 +1987,51 @@ function updateCountDown() {
 updateCountDown();
 
 
-// ===== 按钮震动反馈（增强版） =====
-function vibrate(pattern) {
-  if (!navigator.vibrate) {
-    console.warn('[震动] 当前浏览器不支持 navigator.vibrate');
-    return false;
-  }
-  try {
-    return navigator.vibrate(pattern);
-  } catch (e) {
-    console.error('[震动] 调用失败:', e);
-    return false;
-  }
-}
-
-function vibrateOnTap() {
-  // 短促震动，兼容多种模式
-  vibrate(12);
-}
-
-// 绑定 touchstart 和 click（避免部分设备 touchstart 不触发用户激活）
-function addVibrateListener(btn) {
-  btn.addEventListener('touchstart', function(e) {
-    // 防止重复触发 click 时震动两次（click 会在 touchend 后触发，我们只在 touchstart 震动）
-    vibrateOnTap();
-  }, { passive: true });
-}
-
-// 为所有底部按钮添加
+// 选中指定按钮集合
 const vibrateButtons = document.querySelectorAll('.circle-btn, .pill-btn, .setting-btn, #btnStopRewind');
-vibrateButtons.forEach(addVibrateListener);
+
+// 给每个按钮绑定click震动
+vibrateButtons.forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        try {
+            if ('vibrate' in navigator) {
+                // 修改这里调整震动时长/模式
+                navigator.vibrate(200);
+            }
+        } catch (err) {
+            // 不支持直接静默
+        }
+    });
+});
+
+
+// ===== 镜像源选择弹窗控制 =====
+const mirrorSourceModal = document.getElementById('mirrorSourceModal');
+const mirrorSourceClose = document.getElementById('mirrorSourceClose');
+const mirrorSourceItems = document.querySelectorAll('.mirror-source-item');
+
+function showMirrorSourceModal() {
+  mirrorSourceModal.classList.add('show');
+}
+
+function hideMirrorSourceModal() {
+  mirrorSourceModal.classList.remove('show');
+}
+
+mirrorSourceClose.addEventListener('click', hideMirrorSourceModal);
+// 点击背景关闭
+mirrorSourceModal.querySelector('.mirror-source-backdrop').addEventListener('click', hideMirrorSourceModal);
+
+mirrorSourceItems.forEach(item => {
+  item.addEventListener('click', () => {
+    settings.mirrorSource = item.dataset.source;
+    settings.useMirror = true;
+    saveSettings();
+    hideMirrorSourceModal();
+    // 应用新源：刷新页面（简单直接）
+    location.reload();
+  });
+});
 </script>
 </body>
 </html>
