@@ -548,7 +548,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.4b</i>
+      <i>v0.3.5</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -1521,7 +1521,7 @@ function initCardThumbs() {
     const thumb = card.querySelector('.card-thumb');
     if (!src || !thumb || thumb.querySelector('video')) return;
     const tmpVideo = document.createElement('video');
-    tmpVideo.src = src; tmpVideo.muted = true; tmpVideo.playsInline = true; tmpVideo.preload = 'auto';
+    tmpVideo.src = getMediaUrl(src); tmpVideo.muted = true; tmpVideo.playsInline = true; tmpVideo.preload = 'auto';
     tmpVideo.style.pointerEvents = 'none';
     tmpVideo.addEventListener('loadeddata', () => { tmpVideo.currentTime = 0.01; });
     tmpVideo.addEventListener('seeked', function onSeeked() { tmpVideo.pause(); tmpVideo.removeEventListener('seeked', onSeeked); });
