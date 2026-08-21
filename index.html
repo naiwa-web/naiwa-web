@@ -2304,7 +2304,7 @@ btnCacheAllVideos.addEventListener('click', async () => {
       };
       xhr.onerror = () => reject(new Error('Network error'));
       xhr.ontimeout = () => reject(new Error('Timeout'));
-      xhr.timeout = 30000; // 30秒超时
+      xhr.timeout = 120000; // 120秒超时
       xhr.send();
     });
   }
