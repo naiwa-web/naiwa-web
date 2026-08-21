@@ -544,7 +544,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.7</i>
+      <i>v0.4.0</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -745,99 +745,72 @@ button:active {
         </i>
     </div>
           <div><a href="https://github.com/naiwa-web/naiwa-web.github.io"><i>*Github Page</i></a></div>
-          <div style="color:#ffffff00;"><i>*0.3.5 final release <a href="./nw_beta1.html" style="color:#ffffff00;">0.1.2 old page🔗</a>。</i></div>
+          <div style="color:#ffffff00;"><i>*<a href="./nw_beta1.html" style="color:#ffffff00;">0.1.2 old page🔗</a>。</i></div>
       
   </div>
 </div>
 
 <script>
-// ===== 视频预加载功能 =====
-let preloadQueue = [];
-let activePreloads = 0;
-const MAX_PRELOAD_CONCURRENCY = 2;   // 同时最多预加载 2 个视频
+// 支持倒放的视频白名单
+const rewindableVideos = new Set([
+  'a1-glimpse.mp4', 'a2-turtle.mp4', 'a3-angel.mp4', 'a4-meditation.mp4',
+  'a5-flexible.mp4', 'a6-pass.mp4', 'a7-pet.mp4', 'a8-taiji.mp4',
+  'b1-police.mp4', 'b2-apple.mp4', 'b3-egg.mp4', 'b4-sad.mp4',
+  'b5-legend.mp4', 'b6-born.mp4', 'b7-arrive.mp4'
+]);
 
-// 将视频添加到预加载队列
-function enqueueVideoPreload(src) {
-  if (!src) return;
-  // 去重：避免重复预加载相同视频
-  if (!preloadQueue.includes(src) && !document.querySelector(`video[data-preload-src="${src}"]`)) {
-    preloadQueue.push(src);
-    processPreloadQueue();
-  }
-}
+// ===== 视频预加载（简化版） =====
+let preloadList = [];
+let preloadIndex = 0;
+const MAX_CONCURRENT_PRELOAD = 2; // 同时最多2个
 
-function processPreloadQueue() {
-  while (activePreloads < MAX_PRELOAD_CONCURRENCY && preloadQueue.length > 0) {
-    const src = preloadQueue.shift();
-    activePreloads++;
+function startPreloadNext() {
+  while (preloadIndex < preloadList.length && document.querySelectorAll('video[data-preload]').length < MAX_CONCURRENT_PRELOAD) {
+    const url = preloadList[preloadIndex];
+    preloadIndex++;
     const vid = document.createElement('video');
-    vid.src = src;
+    vid.src = url;
     vid.preload = 'auto';
     vid.muted = true;
     vid.playsInline = true;
     vid.style.display = 'none';
-    vid.setAttribute('data-preload-src', src);
-
-    // ===== 在这里添加事件监听 =====
+    vid.setAttribute('data-preload', 'true');
+    vid.addEventListener('loadeddata', () => {
+      console.log(`📦 第一帧已加载: ${url}`);
+    });
     vid.addEventListener('canplaythrough', () => {
-      console.log(`✅ 视频已缓存完成: ${src}`);
-      // 缓存完成后可以释放并发限制
-      activePreloads--;
-      processPreloadQueue();
-    });
-
-    vid.addEventListener('loadeddata', () => {
-      console.log(`📦 视频第一帧已加载: ${src}`);
-    });
-
-    vid.addEventListener('error', () => {
-      console.error(`❌ 加载失败: ${src}`);
-      activePreloads--;
-      vid.remove(); // 失败移除元素
-      processPreloadQueue();
-    });
-
-    document.body.appendChild(vid);
-    vid.load();
-  }
-}
-
-// 处理预加载队列
-function processPreloadQueue() {
-  while (activePreloads < MAX_PRELOAD_CONCURRENCY && preloadQueue.length > 0) {
-    const src = preloadQueue.shift();
-    activePreloads++;
-    const vid = document.createElement('video');
-    vid.src = src;
-    vid.preload = 'auto';
-    vid.muted = true;
-    vid.playsInline = true;
-    vid.style.display = 'none';
-    vid.setAttribute('data-preload-src', src); // 用于去重标记
-    vid.addEventListener('loadeddata', () => {
-      // 加载了部分数据，可以继续下一个
-      activePreloads--;
-      processPreloadQueue();
-      // 可以选择保留该元素以便后续复用，或加载完成后移除
-      // 这里保留在 DOM 中，浏览器会继续缓存
+      console.log(`✅ 缓存完成: ${url}`);
+      vid.remove(); // 完成后移除元素，释放内存
+      startPreloadNext(); // 继续下一个
     });
     vid.addEventListener('error', () => {
-      activePreloads--;
-      processPreloadQueue();
-      vid.remove(); // 加载失败移除
+      console.warn(`❌ 加载失败: ${url}`);
+      vid.remove();
+      startPreloadNext();
     });
     document.body.appendChild(vid);
     vid.load();
+    console.log(`🔽 开始下载: ${url}`);
   }
 }
 
-// 启动预加载所有卡包视频
 function preloadAllCardVideos() {
+  const normalVideos = [];
+  const reverseVideos = [];
   document.querySelectorAll('.card-item[data-video]').forEach(card => {
-    const filename = card.dataset.video;
-    const fullUrl = getMediaUrl(filename);
-    enqueueVideoPreload(fullUrl);
+    normalVideos.push(card.dataset.video);
   });
+  normalVideos.forEach(filename => {
+    const clean = filename.split('?')[0];
+    if (rewindableVideos.has(clean)) {
+      reverseVideos.push(`${clean.replace(/\.mp4$/, '')}-reverse.mp4`);
+    }
+  });
+
+  // 倒放视频优先，普通视频其次
+  preloadList = [...reverseVideos, ...normalVideos].map(filename => getMediaUrl(filename));
+  preloadIndex = 0;
+  startPreloadNext();
 }
 
 
@@ -1423,6 +1396,10 @@ const btnOpenSet = document.getElementById('btnOpenSet');
 const settingPage = document.getElementById('settingPage');
 const setBack = document.getElementById('setBack');
 const bgButtons = document.querySelectorAll('.bg-btn');
+// ===== 镜像源选择弹窗控制 =====
+const mirrorSourceModal = document.getElementById('mirrorSourceModal');
+const mirrorSourceClose = document.getElementById('mirrorSourceClose');
+const mirrorSourceItems = document.querySelectorAll('.mirror-source-item');
 
 let isPlay = false;
 let wakeLock = null;
@@ -1868,13 +1845,7 @@ const reverseVideo = document.getElementById('reverseVideo');
 // 确保倒放视频不循环
 reverseVideo.loop = false;
 
-// 支持倒放的视频白名单
-const rewindableVideos = new Set([
-  'a1-glimpse.mp4', 'a2-turtle.mp4', 'a3-angel.mp4', 'a4-meditation.mp4',
-  'a5-flexible.mp4', 'a6-pass.mp4', 'a7-pet.mp4', 'a8-taiji.mp4',
-  'b1-police.mp4', 'b2-apple.mp4', 'b3-egg.mp4', 'b4-sad.mp4',
-  'b5-legend.mp4', 'b6-born.mp4', 'b7-arrive.mp4'
-]);
+
 
 function getReverseSrc(originalSrc) {
   const clean = originalSrc.split('?')[0];
@@ -2145,10 +2116,7 @@ vibrateButtons.forEach(btn => {
 });
 
 
-// ===== 镜像源选择弹窗控制 =====
-const mirrorSourceModal = document.getElementById('mirrorSourceModal');
-const mirrorSourceClose = document.getElementById('mirrorSourceClose');
-const mirrorSourceItems = document.querySelectorAll('.mirror-source-item');
+
 
 function showMirrorSourceModal() {
   mirrorSourceModal.classList.add('show');
