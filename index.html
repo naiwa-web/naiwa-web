@@ -645,6 +645,37 @@ button:active {
           </div>
         </div>
       </div>
+      
+<div class="set-row">
+  <div>预加载所有视频</div>
+  <div class="switch-wrap" id="wrapPreload">
+    <div class="switch-track" data-target="preload">
+      <div class="switch-thumb">
+        <div class="switch-thumb-clone">
+          <div class="switch-thumb-clone-inner"></div>
+        </div>
+        <svg class="glass-filter-svg">
+          <defs>
+            <filter id="filterPreload" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+              <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+              <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+              <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+              <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+              <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+              <feComponentTransfer in="specular_layer" result="specular_faded">
+                <feFuncA type="linear" slope="0.5"/>
+              </feComponentTransfer>
+              <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+              <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+            </filter>
+          </defs>
+        </svg>
+        <div class="switch-thumb-inner"></div>
+      </div>
+    </div>
+  </div>
+</div>
       <!-- UI 大小滑块（液态玻璃） -->
       <div class="set-row">
         <div>UI 大小</div>
@@ -720,6 +751,97 @@ button:active {
 </div>
 
 <script>
+// ===== 视频预加载功能 =====
+let preloadQueue = [];
+let activePreloads = 0;
+const MAX_PRELOAD_CONCURRENCY = 2;   // 同时最多预加载 2 个视频
+
+// 将视频添加到预加载队列
+function enqueueVideoPreload(src) {
+  if (!src) return;
+  // 去重：避免重复预加载相同视频
+  if (!preloadQueue.includes(src) && !document.querySelector(`video[data-preload-src="${src}"]`)) {
+    preloadQueue.push(src);
+    processPreloadQueue();
+  }
+}
+
+function processPreloadQueue() {
+  while (activePreloads < MAX_PRELOAD_CONCURRENCY && preloadQueue.length > 0) {
+    const src = preloadQueue.shift();
+    activePreloads++;
+    const vid = document.createElement('video');
+    vid.src = src;
+    vid.preload = 'auto';
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.style.display = 'none';
+    vid.setAttribute('data-preload-src', src);
+
+    // ===== 在这里添加事件监听 =====
+    vid.addEventListener('canplaythrough', () => {
+      console.log(`✅ 视频已缓存完成: ${src}`);
+      // 缓存完成后可以释放并发限制
+      activePreloads--;
+      processPreloadQueue();
+    });
+
+    vid.addEventListener('loadeddata', () => {
+      console.log(`📦 视频第一帧已加载: ${src}`);
+    });
+
+    vid.addEventListener('error', () => {
+      console.error(`❌ 加载失败: ${src}`);
+      activePreloads--;
+      vid.remove(); // 失败移除元素
+      processPreloadQueue();
+    });
+
+    document.body.appendChild(vid);
+    vid.load();
+  }
+}
+
+// 处理预加载队列
+function processPreloadQueue() {
+  while (activePreloads < MAX_PRELOAD_CONCURRENCY && preloadQueue.length > 0) {
+    const src = preloadQueue.shift();
+    activePreloads++;
+    const vid = document.createElement('video');
+    vid.src = src;
+    vid.preload = 'auto';
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.style.display = 'none';
+    vid.setAttribute('data-preload-src', src); // 用于去重标记
+    vid.addEventListener('loadeddata', () => {
+      // 加载了部分数据，可以继续下一个
+      activePreloads--;
+      processPreloadQueue();
+      // 可以选择保留该元素以便后续复用，或加载完成后移除
+      // 这里保留在 DOM 中，浏览器会继续缓存
+    });
+    vid.addEventListener('error', () => {
+      activePreloads--;
+      processPreloadQueue();
+      vid.remove(); // 加载失败移除
+    });
+    document.body.appendChild(vid);
+    vid.load();
+  }
+}
+
+// 启动预加载所有卡包视频
+function preloadAllCardVideos() {
+  document.querySelectorAll('.card-item[data-video]').forEach(card => {
+    const filename = card.dataset.video;
+    const fullUrl = getMediaUrl(filename);
+    enqueueVideoPreload(fullUrl);
+  });
+}
+
+
+
 // ===== 手机自动全屏（仅 click 触发，确保用户激活） =====
 (function() {
   function isMobile() {
@@ -1318,7 +1440,8 @@ const defaultSettings = {
   switchBlur: 0.2,
   switchSaturation: 6,
   mirrorSource: 'https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/',  // 默认第一个源
-  useMirror: false,   // 如果之前没有则添加
+  useMirror: false,
+  preload: true
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
 
@@ -1372,6 +1495,9 @@ function applySettings() {
   document.documentElement.style.setProperty('--ui-bg-inner-shadow', settings.bgInnerShadow);
   document.body.classList.toggle('glass-experimental', settings.experimentalGlass);
   updateBgButtons();
+  if (settings.preload) {
+  preloadAllCardVideos();
+}
 }
 
 // 循环按钮
@@ -1446,9 +1572,20 @@ btnOpenSet.onclick = () => {
       // 关闭镜像，刷新页面应用回本地相对路径
       location.reload();
     }
+  },settings.useMirror);
+  switchPreload = createLiquidGlassSwitch(
+  document.querySelector("#wrapPreload"), "filterPreload",
+  (checked) => {
+    settings.preload = checked;
+    saveSettings();
+    if (checked) {
+      preloadAllCardVideos();   // 开启时立即预加载
+    }
   },
-  settings.useMirror
+  settings.preload
 );
+
+
     // 初始化液态玻璃滑块
     sliderUiScale = createLiquidGlassSlider(
       document.getElementById('sliderUiScale'), 'filterSliderUiScale',
@@ -1532,6 +1669,9 @@ function initCardThumbs() {
 // 初始化
 applySettings();
 initCardThumbs();
+
+// 调用：在页面初始化完成后执行
+preloadAllCardVideos();
 if (settings.wake && navigator.wakeLock) {
   navigator.wakeLock.request('screen').then(lock => { wakeLock = lock; }).catch(() => { settings.wake = false; saveSettings(); });
 }
@@ -2032,6 +2172,8 @@ mirrorSourceItems.forEach(item => {
     location.reload();
   });
 });
+
+
 </script>
 </body>
 </html>
