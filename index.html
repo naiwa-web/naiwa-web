@@ -544,7 +544,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.4.0-vConsole</i>
+      <i>v0.4.1</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -676,6 +676,33 @@ button:active {
     </div>
   </div>
 </div>
+<!-- 开启调试面板（vConsole） Switch -->
+<div class="set-row">
+  <div>开启vConsole</div>
+  <div class="switch-wrap" id="wrapVConsole">
+    <div class="switch-track" data-target="vconsole">
+      <div class="switch-thumb">
+        <div class="switch-thumb-clone"><div class="switch-thumb-clone-inner"></div></div>
+        <svg class="glass-filter-svg">
+          <defs>
+            <filter id="filterVConsole" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+              <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+              <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+              <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+              <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+              <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+              <feComponentTransfer in="specular_layer" result="specular_faded"><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+              <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+              <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+            </filter>
+          </defs>
+        </svg>
+        <div class="switch-thumb-inner"></div>
+      </div>
+    </div>
+  </div>
+</div>
       <!-- UI 大小滑块（液态玻璃） -->
       <div class="set-row">
         <div>UI 大小</div>
@@ -750,8 +777,37 @@ button:active {
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/vconsole"></script>
-<script>new VConsole();</script>
+
 <script>
+  // 动态加载 vConsole
+function loadVConsole() {
+  if (vConsoleInstance) return; // 已加载
+
+  // 加载 vConsole 脚本
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/vconsole';
+  script.onload = () => {
+    if (window.VConsole) {
+      vConsoleInstance = new VConsole();
+      alert('✅ 调试面板已开启');
+    } else {
+      alert('vConsole 加载失败');
+    }
+  };
+  script.onerror = () => {
+    console.error('vConsole 脚本加载失败');
+  };
+  document.body.appendChild(script);
+}
+
+// 销毁 vConsole
+function unloadVConsole() {
+  if (vConsoleInstance && typeof vConsoleInstance.destroy === 'function') {
+    vConsoleInstance.destroy();
+    vConsoleInstance = null;
+    console.log('❌ 调试面板已关闭');
+  }
+}
 // 支持倒放的视频白名单
 const rewindableVideos = new Set([
   'a1-glimpse.mp4', 'a2-turtle.mp4', 'a3-angel.mp4', 'a4-meditation.mp4',
@@ -1407,6 +1463,8 @@ let wakeLock = null;
 let switchAudio, switchPortrait, switchMirror, switchWake, switchExperimental;
 let sliderUiScale, sliderSwitchScale, sliderBgOpacity, sliderBgBlur;
 let switchInited = false;
+let switchVConsole;       // 开关实例
+let vConsoleInstance = null;  // vConsole 实例
 
 const STORAGE_KEY = 'naifrog_settings';
 const defaultSettings = {
@@ -1420,6 +1478,7 @@ const defaultSettings = {
   mirrorSource: 'https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/',  // 默认第一个源
   useMirror: false,
   preload: true
+  vConsoleEnabled: false,   // 调试面板开关
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
 
