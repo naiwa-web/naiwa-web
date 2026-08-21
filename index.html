@@ -402,6 +402,12 @@ button:active {
   background: #e8f4ff;
   border-color: #3b9eff;
 }
+
+.cache-btn-done {
+  background: #34c759;
+  color: white;
+  border-color: #34c759;
+}
 </style>
 </head>
 <body>
@@ -534,9 +540,9 @@ button:active {
     <div class="mirror-source-list">
       <button class="mirror-source-item" data-source="https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">cdn.gh-proxy.org</button>
       <button class="mirror-source-item" data-source="https://ghm.078465.xyz/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghm.078465.xyz</button>
-      <button class="mirror-source-item" data-source="https://github.tbap.top/https://github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">github.tbap.top</button>
+      <button class="mirror-source-item" data-source="https://github.tbap.top/https://github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">github.tbap.top<i style="color: #0377f7;">[推荐]</i></button>
       <button class="mirror-source-item" data-source="https://ghproxy.net/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghproxy.net</button>
-      <button class="mirror-source-item" data-source="https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">GitHub raw (CORS)<i>无加速</i></button>
+      <button class="mirror-source-item" data-source="https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">GitHub raw (CORS)<i style="color: #ff0000;">[无加速]</i></button>
       <button class="mirror-source-item" data-source="https://cdn.jsdelivr.net/gh/naiwa-web/naiwa-web.github.io@main/">jsDelivr (CORS)</button>
     </div>
   </div>
@@ -737,9 +743,14 @@ button:active {
   <div>一键缓存全部视频</div>
   <button class="bg-btn" id="btnCacheAllVideos">开始缓存</button>
 </div>
+
 <!-- 缓存进度显示区域 -->
 <div id="cacheProgress" style="margin: 10px 20px; display: none; font-size: 13px; color: #333;"></div>
-      <!-- 液态玻璃参数面板 -->
+<div class="set-row">
+<div>换源菜单</div>
+  <button class="bg-btn" id="s_m_p" onclick="showMirrorSourceModal();">打开</button>
+</div></div>      
+<!-- 液态玻璃参数面板 -->
 <div> </div>
 <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>液态玻璃参数</i></div>
 <!-- 按钮背景饱和度 -->
@@ -1461,6 +1472,7 @@ const btnOpenSet = document.getElementById('btnOpenSet');
 const settingPage = document.getElementById('settingPage');
 const setBack = document.getElementById('setBack');
 const bgButtons = document.querySelectorAll('.bg-btn');
+const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
 // ===== 镜像源选择弹窗控制 =====
 const mirrorSourceModal = document.getElementById('mirrorSourceModal');
 const mirrorSourceClose = document.getElementById('mirrorSourceClose');
@@ -1487,6 +1499,7 @@ const defaultSettings = {
   useMirror: false,
   preload: true,
   vConsoleEnabled: false,   // 调试面板开关
+  cacheDone: false,   // 视频是否已全部缓存
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
 
@@ -1547,6 +1560,16 @@ function applySettings() {
   loadVConsole();
 } else {
   unloadVConsole();
+}
+// 恢复缓存按钮状态
+if (btnCacheAllVideos) {
+  if (settings.cacheDone) {
+    btnCacheAllVideos.textContent = '已完成缓存';
+    btnCacheAllVideos.classList.add('cache-btn-done');
+  } else {
+    btnCacheAllVideos.textContent = '开始缓存';
+    btnCacheAllVideos.classList.remove('cache-btn-done');
+  }
 }
 }
 
@@ -2228,8 +2251,7 @@ mirrorSourceItems.forEach(item => {
   });
 });
 
-// ===== 一键缓存所有视频（改进版） =====
-const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
+// ===== 一键缓存所有视频（最终版，含进度条） =====
 const cacheProgressDiv = document.getElementById('cacheProgress');
 
 btnCacheAllVideos.addEventListener('click', async () => {
@@ -2242,8 +2264,7 @@ btnCacheAllVideos.addEventListener('click', async () => {
   const normalVideos = [];
   const reverseVideos = [];
   document.querySelectorAll('.card-item[data-video]').forEach(card => {
-    const filename = card.dataset.video;
-    if (filename) normalVideos.push(filename);
+    normalVideos.push(card.dataset.video);
   });
   normalVideos.forEach(filename => {
     const clean = filename.split('?')[0];
@@ -2258,9 +2279,10 @@ btnCacheAllVideos.addEventListener('click', async () => {
   let failed = 0;
 
   btnCacheAllVideos.disabled = true;
+  btnCacheAllVideos.classList.remove('cache-btn-done');
+  btnCacheAllVideos.textContent = '缓存中 0/' + allVideos.length;
   cacheProgressDiv.style.display = 'block';
 
-  // 单个视频下载函数，返回 Promise
   function downloadVideo(url) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -2272,7 +2294,7 @@ btnCacheAllVideos.addEventListener('click', async () => {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
           const elapsed = (Date.now() - startTime) / 1000;
-          const speed = elapsed > 0 ? (event.loaded / elapsed / 1024).toFixed(1) : 0; // KB/s
+          const speed = elapsed > 0 ? (event.loaded / elapsed / 1024).toFixed(1) : 0;
           const fileIndex = allVideos.indexOf(url) + 1;
           cacheProgressDiv.innerHTML = `
             <div style="margin-bottom:4px;">📦 ${fileIndex}/${allVideos.length} ${url.split('/').pop()}</div>
@@ -2304,15 +2326,12 @@ btnCacheAllVideos.addEventListener('click', async () => {
       };
       xhr.onerror = () => reject(new Error('Network error'));
       xhr.ontimeout = () => reject(new Error('Timeout'));
-      xhr.timeout = 120000; // 120秒超时
+      xhr.timeout = 120000;
       xhr.send();
     });
   }
 
-  // 串行处理所有视频
   for (const url of allVideos) {
-    const fileIndex = allVideos.indexOf(url) + 1;
-    btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
     try {
       await downloadVideo(url);
       completed++;
@@ -2321,20 +2340,25 @@ btnCacheAllVideos.addEventListener('click', async () => {
       failed++;
       console.warn(`❌ 缓存失败: ${url}`, err.message);
     }
+    btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
   }
 
+  // 缓存结束
   btnCacheAllVideos.disabled = false;
-  btnCacheAllVideos.textContent = failed > 0 ? `完成，失败 ${failed} 个` : '开始缓存';
+  if (failed === 0) {
+    settings.cacheDone = true;
+    saveSettings();
+    btnCacheAllVideos.textContent = '已完成缓存';
+    btnCacheAllVideos.classList.add('cache-btn-done');
+  } else {
+    settings.cacheDone = false;
+    saveSettings();
+    btnCacheAllVideos.textContent = `失败 ${failed} 个，重试`;
+    btnCacheAllVideos.classList.remove('cache-btn-done');
+  }
   cacheProgressDiv.innerHTML = '';
   cacheProgressDiv.style.display = 'none';
-
-  if (failed > 0) {
-    alert(`缓存完成，但 ${failed} 个视频失败。\n建议更换镜像源后重试。`);
-  } else {
-    alert('✅ 所有视频已缓存到本地！');
-  }
 });
-
 </script>
 </body>
 </html>
