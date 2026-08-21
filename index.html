@@ -737,6 +737,8 @@ button:active {
   <div>一键缓存全部视频</div>
   <button class="bg-btn" id="btnCacheAllVideos">开始缓存</button>
 </div>
+<!-- 缓存进度显示区域 -->
+<div id="cacheProgress" style="margin: 10px 20px; display: none; font-size: 13px; color: #333;"></div>
       <!-- 液态玻璃参数面板 -->
 <div> </div>
 <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>液态玻璃参数</i></div>
@@ -2228,6 +2230,7 @@ mirrorSourceItems.forEach(item => {
 
 // ===== 一键缓存所有视频（改进版） =====
 const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
+const cacheProgressDiv = document.getElementById('cacheProgress');
 
 btnCacheAllVideos.addEventListener('click', async () => {
   if (!('caches' in window)) {
@@ -2239,7 +2242,8 @@ btnCacheAllVideos.addEventListener('click', async () => {
   const normalVideos = [];
   const reverseVideos = [];
   document.querySelectorAll('.card-item[data-video]').forEach(card => {
-    normalVideos.push(card.dataset.video);
+    const filename = card.dataset.video;
+    if (filename) normalVideos.push(filename);
   });
   normalVideos.forEach(filename => {
     const clean = filename.split('?')[0];
@@ -2249,23 +2253,69 @@ btnCacheAllVideos.addEventListener('click', async () => {
   });
   const allVideos = [...reverseVideos, ...normalVideos].map(filename => getMediaUrl(filename));
 
-  btnCacheAllVideos.disabled = true;
+  const cacheName = 'naiwa-video-cache-v1';
   let completed = 0;
   let failed = 0;
 
-  async function cacheOne(url, timeout = 30000) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timer);
+  btnCacheAllVideos.disabled = true;
+  cacheProgressDiv.style.display = 'block';
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      // 必须 clone 再放入 cache
-      const cache = await caches.open('naiwa-video-cache-v1');
-      await cache.put(url, response.clone());
+  // 单个视频下载函数，返回 Promise
+  function downloadVideo(url) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'blob';
+      let startTime = Date.now();
+
+      xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          const elapsed = (Date.now() - startTime) / 1000;
+          const speed = elapsed > 0 ? (event.loaded / elapsed / 1024).toFixed(1) : 0; // KB/s
+          const fileIndex = allVideos.indexOf(url) + 1;
+          cacheProgressDiv.innerHTML = `
+            <div style="margin-bottom:4px;">📦 ${fileIndex}/${allVideos.length} ${url.split('/').pop()}</div>
+            <div style="background:#eee;height:6px;border-radius:3px;overflow:hidden;">
+              <div style="width:${percent}%;height:100%;background:#3bbf4e;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span>${percent}%</span>
+              <span>${speed} KB/s</span>
+            </div>
+          `;
+        }
+      };
+
+      xhr.onload = async () => {
+        if (xhr.status === 200) {
+          try {
+            const blob = xhr.response;
+            const response = new Response(blob, { status: 200, headers: { 'Content-Type': 'video/mp4' } });
+            const cache = await caches.open(cacheName);
+            await cache.put(url, response);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(`HTTP ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.ontimeout = () => reject(new Error('Timeout'));
+      xhr.timeout = 30000; // 30秒超时
+      xhr.send();
+    });
+  }
+
+  // 串行处理所有视频
+  for (const url of allVideos) {
+    const fileIndex = allVideos.indexOf(url) + 1;
+    btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
+    try {
+      await downloadVideo(url);
       completed++;
-      btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
       console.log(`✅ 已缓存: ${url}`);
     } catch (err) {
       failed++;
@@ -2273,15 +2323,13 @@ btnCacheAllVideos.addEventListener('click', async () => {
     }
   }
 
-  // 串行处理，避免并发过多
-  for (const url of allVideos) {
-    await cacheOne(url);
-  }
-
   btnCacheAllVideos.disabled = false;
   btnCacheAllVideos.textContent = failed > 0 ? `完成，失败 ${failed} 个` : '开始缓存';
+  cacheProgressDiv.innerHTML = '';
+  cacheProgressDiv.style.display = 'none';
+
   if (failed > 0) {
-    alert(`缓存完成，但 ${failed} 个视频失败。\n可能镜像源不支持 CORS 或超时。\n建议更换镜像源后重试。`);
+    alert(`缓存完成，但 ${failed} 个视频失败。\n建议更换镜像源后重试。`);
   } else {
     alert('✅ 所有视频已缓存到本地！');
   }
