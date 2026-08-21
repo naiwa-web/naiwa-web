@@ -731,7 +731,10 @@ button:active {
           <button class="bg-btn" data-bg="white">白</button>
         </div>
         
-      </div>
+      </div><div class="set-row">
+  <div>一键缓存全部视频</div>
+  <button class="bg-btn" id="btnCacheAllVideos">开始缓存</button>
+</div>
       <!-- 液态玻璃参数面板 -->
 <div> </div>
 <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>液态玻璃参数</i></div>
@@ -760,6 +763,7 @@ button:active {
   <div>开关饱和度</div>
   <div class="liquid-slider-container" id="sliderSwitchSaturation" data-min="0" data-max="10" data-step="0.5" data-value="6"></div>
 </div>
+
       <div>
           <i>
             *基于svg的液态玻璃在较新chrome和firefox中可用，safari不可用。
@@ -819,7 +823,7 @@ const rewindableVideos = new Set([
 // ===== 视频预加载（简化版） =====
 let preloadList = [];
 let preloadIndex = 0;
-const MAX_CONCURRENT_PRELOAD = 2; // 同时最多2个
+const MAX_CONCURRENT_PRELOAD = 1; // 同时最多1个
 
 function startPreloadNext() {
   while (preloadIndex < preloadList.length && document.querySelectorAll('video[data-preload]').length < MAX_CONCURRENT_PRELOAD) {
@@ -2220,6 +2224,68 @@ mirrorSourceItems.forEach(item => {
   });
 });
 
+// ===== 一键缓存所有视频 =====
+const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
+
+btnCacheAllVideos.addEventListener('click', async () => {
+  if (!('caches' in window)) {
+    alert('当前浏览器不支持 Cache Storage，无法缓存');
+    return;
+  }
+
+  // 收集所有视频 URL（普通 + 倒放，根据您的白名单）
+  const normalVideos = [];
+  const reverseVideos = [];
+  document.querySelectorAll('.card-item[data-video]').forEach(card => {
+    const filename = card.dataset.video;
+    if (filename) normalVideos.push(filename);
+  });
+  normalVideos.forEach(filename => {
+    const clean = filename.split('?')[0];
+    if (rewindableVideos.has(clean)) {
+      reverseVideos.push(`${clean.replace(/\.mp4$/, '')}-reverse.mp4`);
+    }
+  });
+
+  const allVideos = [...reverseVideos, ...normalVideos].map(filename => getMediaUrl(filename));
+  const cacheName = 'naiwa-video-cache-v1';
+
+  btnCacheAllVideos.disabled = true;
+  btnCacheAllVideos.textContent = '缓存中...';
+
+  try {
+    const cache = await caches.open(cacheName);
+    // 使用 Promise.allSettled 避免单个失败影响整体
+    let completed = 0;
+    const results = await Promise.allSettled(allVideos.map(url => cache.add(url).then(() => {
+      completed++;
+      btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
+      console.log(`已缓存: ${url}`);
+    })));
+
+    const failed = results.filter(r => r.status === 'rejected');
+    if (failed.length > 0) {
+      alert(`缓存完成，但 ${failed.length} 个视频失败。可能由于镜像源不支持 CORS 或网络问题。`);
+      console.warn('缓存失败列表:', failed);
+    } else {
+      alert('✅ 所有视频已缓存到本地！');
+    }
+  } catch (err) {
+    alert('缓存过程出现错误：' + err.message);
+    console.error(err);
+  } finally {
+    btnCacheAllVideos.disabled = false;
+    btnCacheAllVideos.textContent = '开始缓存';
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log('Service Worker 注册成功'))
+      .catch(err => console.error('Service Worker 注册失败:', err));
+  });
+}
 
 </script>
 </body>
