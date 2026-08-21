@@ -536,6 +536,8 @@ button:active {
       <button class="mirror-source-item" data-source="https://ghm.078465.xyz/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghm.078465.xyz</button>
       <button class="mirror-source-item" data-source="https://github.tbap.top/https://github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">github.tbap.top</button>
       <button class="mirror-source-item" data-source="https://ghproxy.net/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghproxy.net</button>
+      <button class="mirror-source-item" data-source="https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">GitHub raw (CORS)<i>无加速</i></button>
+      <button class="mirror-source-item" data-source="https://cdn.jsdelivr.net/gh/naiwa-web/naiwa-web.github.io@main/">jsDelivr (CORS)</button>
     </div>
   </div>
 </div>
@@ -2224,21 +2226,20 @@ mirrorSourceItems.forEach(item => {
   });
 });
 
-// ===== 一键缓存所有视频 =====
+// ===== 一键缓存所有视频（改进版） =====
 const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
 
 btnCacheAllVideos.addEventListener('click', async () => {
   if (!('caches' in window)) {
-    alert('当前浏览器不支持 Cache Storage，无法缓存');
+    alert('当前浏览器不支持 Cache Storage');
     return;
   }
 
-  // 收集所有视频 URL（普通 + 倒放，根据您的白名单）
+  // 收集视频列表（倒放优先）
   const normalVideos = [];
   const reverseVideos = [];
   document.querySelectorAll('.card-item[data-video]').forEach(card => {
-    const filename = card.dataset.video;
-    if (filename) normalVideos.push(filename);
+    normalVideos.push(card.dataset.video);
   });
   normalVideos.forEach(filename => {
     const clean = filename.split('?')[0];
@@ -2246,46 +2247,45 @@ btnCacheAllVideos.addEventListener('click', async () => {
       reverseVideos.push(`${clean.replace(/\.mp4$/, '')}-reverse.mp4`);
     }
   });
-
   const allVideos = [...reverseVideos, ...normalVideos].map(filename => getMediaUrl(filename));
-  const cacheName = 'naiwa-video-cache-v1';
 
   btnCacheAllVideos.disabled = true;
-  btnCacheAllVideos.textContent = '缓存中...';
+  let completed = 0;
+  let failed = 0;
 
-  try {
-    const cache = await caches.open(cacheName);
-    // 使用 Promise.allSettled 避免单个失败影响整体
-    let completed = 0;
-    const results = await Promise.allSettled(allVideos.map(url => cache.add(url).then(() => {
+  async function cacheOne(url, timeout = 30000) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      // 必须 clone 再放入 cache
+      const cache = await caches.open('naiwa-video-cache-v1');
+      await cache.put(url, response.clone());
       completed++;
       btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
-      console.log(`已缓存: ${url}`);
-    })));
-
-    const failed = results.filter(r => r.status === 'rejected');
-    if (failed.length > 0) {
-      alert(`缓存完成，但 ${failed.length} 个视频失败。可能由于镜像源不支持 CORS 或网络问题。`);
-      console.warn('缓存失败列表:', failed);
-    } else {
-      alert('✅ 所有视频已缓存到本地！');
+      console.log(`✅ 已缓存: ${url}`);
+    } catch (err) {
+      failed++;
+      console.warn(`❌ 缓存失败: ${url}`, err.message);
     }
-  } catch (err) {
-    alert('缓存过程出现错误：' + err.message);
-    console.error(err);
-  } finally {
-    btnCacheAllVideos.disabled = false;
-    btnCacheAllVideos.textContent = '开始缓存';
+  }
+
+  // 串行处理，避免并发过多
+  for (const url of allVideos) {
+    await cacheOne(url);
+  }
+
+  btnCacheAllVideos.disabled = false;
+  btnCacheAllVideos.textContent = failed > 0 ? `完成，失败 ${failed} 个` : '开始缓存';
+  if (failed > 0) {
+    alert(`缓存完成，但 ${failed} 个视频失败。\n可能镜像源不支持 CORS 或超时。\n建议更换镜像源后重试。`);
+  } else {
+    alert('✅ 所有视频已缓存到本地！');
   }
 });
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(() => console.log('Service Worker 注册成功'))
-      .catch(err => console.error('Service Worker 注册失败:', err));
-  });
-}
 
 </script>
 </body>
