@@ -466,7 +466,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.3.2b6</i>
+      <i>v0.3.3</i>
     </div>
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
     <div class="set-list">
@@ -522,6 +522,37 @@ button:active {
           </div>
         </div>
       </div>
+      <!-- 开启镜像加速 Switch -->
+<div class="set-row">
+  <div>开启国内视频加速</div>
+  <div class="switch-wrap" id="wrapMirrorSource">
+    <div class="switch-track" data-target="mirrorSource">
+      <div class="switch-thumb">
+        <div class="switch-thumb-clone">
+          <div class="switch-thumb-clone-inner"></div>
+        </div>
+        <svg class="glass-filter-svg">
+          <defs>
+            <filter id="filterMirrorSource" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+              <feImage href="" x="0" y="0" width="146" height="92" result="displacement_map" preserveAspectRatio="none"/>
+              <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+              <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+              <feImage href="" x="0" y="0" width="146" height="92" result="specular_layer" preserveAspectRatio="none"/>
+              <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+              <feComponentTransfer in="specular_layer" result="specular_faded">
+                <feFuncA type="linear" slope="0.5"/>
+              </feComponentTransfer>
+              <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+              <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+            </filter>
+          </defs>
+        </svg>
+        <div class="switch-thumb-inner"></div>
+      </div>
+    </div>
+  </div>
+</div>
       <!-- 实验性液态玻璃风格 Switch -->
       <div class="set-row">
         <div>实验性液态玻璃风格</div>
@@ -1204,6 +1235,7 @@ const defaultSettings = {
   switchRefractionBoost: 1.5,
   switchBlur: 0.2,
   switchSaturation: 6,
+  useMirror: false,
 };
 let settings = Object.assign({}, defaultSettings, loadSettings());
 
@@ -1242,6 +1274,8 @@ function updateBgButtons() {
   });
 }
 function applySettings() {
+  // 根据镜像开关设置主视频源
+  video.src = getMediaUrl('a1-glimpse.mp4');
   video.muted = !settings.audio;
   viewportContainer.classList.toggle('lock-portrait-mode', settings.portrait);
   updateVideoFit();
@@ -1281,7 +1315,7 @@ document.querySelectorAll('.card-item').forEach(el => {
     const v = el.dataset.video;
     if (v) {
       if (rewindMode) exitRewindMode(); // 关键：先退出倒放
-      video.src = v;
+      video.src = getMediaUrl(v);
       video.play().catch(() => {});
       isPlay = true;
       btnLoop.classList.add('spinning');
@@ -1317,7 +1351,19 @@ btnOpenSet.onclick = () => {
     switchExperimental = createLiquidGlassSwitch(document.querySelector("#wrapExperimental"), "filterExperimental", (checked) => {
       settings.experimentalGlass = checked; document.body.classList.toggle('glass-experimental', checked); saveSettings();
     }, settings.experimentalGlass);
-
+    switchMirrorSource = createLiquidGlassSwitch(
+  document.querySelector("#wrapMirrorSource"), "filterMirrorSource",
+  (checked) => {
+    settings.useMirror = checked;
+    saveSettings();
+    // 简单处理：更改镜像开关后刷新页面以应用新视频源
+    // 可以留空，让用户手动刷新；也可以直接提示刷新
+    if (confirm('镜像开关已更改，是否刷新页面以应用新视频源？')) {
+      location.reload();
+    }
+  },
+  settings.useMirror
+);
     // 初始化液态玻璃滑块
     sliderUiScale = createLiquidGlassSlider(
       document.getElementById('sliderUiScale'), 'filterSliderUiScale',
@@ -1567,6 +1613,14 @@ function handleOutsideTap(e) {
 
 document.addEventListener('click', handleOutsideTap);
 document.addEventListener('touchstart', handleOutsideTap, { passive: true });
+
+// 根据文件名生成实际的媒体 URL（考虑镜像开关）
+function getMediaUrl(filename) {
+  if (settings.useMirror) {
+    return `https://ghproxy.net/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/${filename}`;
+  }
+  return filename; // 直接使用相对路径
+}
 
 function getReverseSrc(originalSrc) {
   // 去掉查询字符串，然后替换扩展名
