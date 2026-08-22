@@ -15,13 +15,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (url.pathname.endsWith('.mp4') && event.request.destination === 'video') {
-    // 如果请求包含 Range 头，直接走网络，不缓存（保证播放流畅）
-    if (event.request.headers.has('range')) {
-      return; // 不拦截，让浏览器正常请求
-    }
+  // 只拦截视频请求，且忽略 Range 请求（让浏览器正常处理）
+  if (url.pathname.endsWith('.mp4') && event.request.destination === 'video' && !event.request.headers.has('range')) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
+      caches.match(event.request, { ignoreSearch: true }).then((cached) => {
         if (cached) {
           console.log('✅ 命中缓存:', url.href);
           return cached;

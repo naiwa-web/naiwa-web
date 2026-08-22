@@ -552,7 +552,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.4.3hotfix</i>
+      <i>v0.4.3hotfix2</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -1473,6 +1473,7 @@ const settingPage = document.getElementById('settingPage');
 const setBack = document.getElementById('setBack');
 const bgButtons = document.querySelectorAll('.bg-btn');
 const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
+const cacheProgressDiv = document.getElementById('cacheProgress');
 // ===== 镜像源选择弹窗控制 =====
 const mirrorSourceModal = document.getElementById('mirrorSourceModal');
 const mirrorSourceClose = document.getElementById('mirrorSourceClose');
@@ -2251,9 +2252,7 @@ mirrorSourceItems.forEach(item => {
   });
 });
 
-// ===== 一键缓存所有视频（最终版，含进度条） =====
-const cacheProgressDiv = document.getElementById('cacheProgress');
-
+// ===== 一键缓存所有视频（最终修正版） =====
 btnCacheAllVideos.addEventListener('click', async () => {
   if (!('caches' in window)) {
     alert('当前浏览器不支持 Cache Storage');
@@ -2314,14 +2313,15 @@ btnCacheAllVideos.addEventListener('click', async () => {
           try {
             const blob = xhr.response;
             const response = new Response(blob, {
-  status: 200,
-  headers: {
-    'Content-Type': 'video/mp4',
-    'Accept-Ranges': 'bytes',
-    'Content-Length': blob.size
-  }
-});
-await cache.put(url, response);
+              status: 200,
+              headers: {
+                'Content-Type': 'video/mp4',
+                'Accept-Ranges': 'bytes',
+                'Content-Length': blob.size
+              }
+            });
+            const cache = await caches.open(cacheName);
+            await cache.put(url, response);
             resolve();
           } catch (err) {
             reject(err);
@@ -2349,7 +2349,7 @@ await cache.put(url, response);
     btnCacheAllVideos.textContent = `缓存中 ${completed}/${allVideos.length}`;
   }
 
-  // 缓存结束
+  // 缓存结束，更新按钮状态并保存
   btnCacheAllVideos.disabled = false;
   if (failed === 0) {
     settings.cacheDone = true;
