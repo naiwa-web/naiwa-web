@@ -76,13 +76,15 @@ body{
 /* 底部 UI */
 .bottom-ui{
   position:absolute;
-  bottom:calc(48px * var(--ui-scale));
+  bottom:calc(48px * 1);
   left:0; width:100%;
   display:flex; justify-content:center; align-items:center;
-  gap:calc(24px * var(--ui-scale));
+  gap:calc(24px * 1);
   z-index:2;
 }
 .circle-btn,.pill-btn,.setting-btn{
+  position: relative;
+overflow: hidden;
   background-color:rgba(0,0,0,var(--ui-bg-opacity));
   backdrop-filter:blur(var(--ui-bg-blur)) saturate(var(--ui-bg-saturate, 1));
   -webkit-backdrop-filter:blur(var(--ui-bg-blur)) saturate(var(--ui-bg-saturate, 1));
@@ -92,29 +94,30 @@ body{
   cursor:pointer;
 }
 .circle-btn{
-  width:calc(72px * var(--ui-scale));
-  height:calc(72px * var(--ui-scale));
+  width:calc(72px * 1);
+  height:calc(72px * 1);
   border-radius:50%;
-  font-size:calc(24px * var(--ui-scale));
+  font-size:calc(24px * 1);
   min-width: 56px;
   min-height: 56px;
   flex-shrink: 0;
 }
 .pill-btn{
-  height:calc(72px * var(--ui-scale));
-  padding:0 calc(28px * var(--ui-scale));
+  height:calc(72px * 1);
+  padding:0 calc(28px * 1);
   border-radius:999px;
-  font-size:calc(24px * var(--ui-scale));
-  gap:calc(8px * var(--ui-scale));
+  font-size:calc(24px * 1);
+/* gap:calc(8px * 1); */
   min-height: 56px;
   flex-shrink: 0;
+/*  min-width: 112px; */
 }
-.pill-btn span{ font-size:calc(14px * var(--ui-scale)); color:#fff; }
+.pill-btn span{ font-size:calc(14px * 1); color:#fff; }
 .setting-btn{
-  width:calc(72px * var(--ui-scale));
-  height:calc(72px * var(--ui-scale));
+  width:calc(72px * 1);
+  height:calc(72px * 1);
   border-radius:50%;
-  font-size:calc(24px * var(--ui-scale));
+  font-size:calc(24px * 1);
   min-width: 56px;
   min-height: 56px;
   flex-shrink: 0;
@@ -150,7 +153,7 @@ body{
 }
 .sheet-header{
   display:flex; align-items:center; justify-content:space-between;
-  padding:16px 20px 12px; flex-shrink:0; background:#fff; z-index:2; zoom: var(--ui-scale); 
+  padding:16px 20px 12px; flex-shrink:0; background:#fff; z-index:2; zoom: 1; 
 }
 .score-badge,.event-tag{
   display:flex; align-items:center; gap:6px;
@@ -174,7 +177,7 @@ body{
 #settingPage{
   position:absolute; inset:0; background:#fff; z-index:200;
   overflow-y:auto;
-  zoom:var(--ui-scale);               /* Chrome & Firefox 126+ 支持 */
+  zoom:1;               /* Chrome & Firefox 126+ 支持 */
   opacity:0;
   visibility:hidden;
   transform: translateX(100%);
@@ -326,13 +329,15 @@ body.glass-experimental .pill-btn span {
 }
 .bottom-ui.rewind-mode #btnStopRewind {
   display: flex;            /* 倒放时显示 */
-  width: calc(72px * var(--ui-scale));
-  height: calc(72px * var(--ui-scale));
+  width: calc(72px * 1);
+  height: calc(72px * 1);
   border-radius: 50%;
-  font-size: calc(24px * var(--ui-scale));
+  font-size: calc(24px * 1);
 }
 
-button:active {
+.circle-btn:active,
+.pill-btn:active,
+.setting-btn:active {
   transform: scale(0.93);
   transition: transform 0.1s;
 }
@@ -358,7 +363,7 @@ button:active {
   position: relative;
   width: 90%;
   max-width: 560px;          /* 原来 400px，改为 560px */
-  background: rgba(255,255,255,0.95);
+  background: rgba(255,255,255,1);
   border-radius: 24px;       /* 稍微增大圆角 */
   padding: 28px 24px;        /* 增加内边距 */
   box-shadow: 0 20px 50px rgba(0,0,0,0.3);
@@ -408,6 +413,37 @@ button:active {
   color: white;
   border-color: #34c759;
 }
+
+
+/* ========== 底部按钮液态玻璃（实验性） ========== */
+/* 基础按钮保留原有样式，这里只补充实验性开启时的折射效果 */
+
+/* 圆形按钮折射 */
+body.glass-experimental .circle-btn,
+body.glass-experimental .setting-btn {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05));
+  backdrop-filter: url(#buttonLiquidFilter) blur(0px) saturate(150%);
+  -webkit-backdrop-filter: url(#buttonLiquidFilter) blur(0px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 2px 2px 6px rgba(255, 255, 255, 0.4);
+}
+
+/* 胶囊按钮折射 */
+body.glass-experimental .pill-btn {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05));
+  backdrop-filter: url(#buttonLiquidFilterPill) blur(0px) saturate(150%);
+  -webkit-backdrop-filter: url(#buttonLiquidFilterPill) blur(0px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 2px 2px 6px rgba(255, 255, 255, 0.4);
+}
+
+/* 按压反馈仅限底部按钮 */
+.circle-btn:active,
+.pill-btn:active,
+.setting-btn:active {
+  transform: scale(0.94);
+  transition: transform 0.1s;
+}
 </style>
 </head>
 <body>
@@ -427,7 +463,39 @@ button:active {
   </button>
   <button class="setting-btn" id="btnOpenSet">⚙️</button>
 </div>
+<svg style="width:0;height:0;position:absolute;">
+  <defs>
+    <!-- 圆形滤镜 -->
+    <filter id="buttonLiquidFilter" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+      <feImage href="" x="0" y="0" width="72" height="72" result="displacement_map" preserveAspectRatio="none"/>
+      <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+      <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+      <feImage href="" x="0" y="0" width="72" height="72" result="specular_layer" preserveAspectRatio="none"/>
+      <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+      <feComponentTransfer in="specular_layer" result="specular_faded">
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+      <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+    </filter>
 
+    <!-- 胶囊滤镜（新增） -->
+    <filter id="buttonLiquidFilterPill" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
+      <feImage href="" x="0" y="0" width="112" height="72" result="displacement_map" preserveAspectRatio="none"/>
+      <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+      <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
+      <feImage href="" x="0" y="0" width="112" height="72" result="specular_layer" preserveAspectRatio="none"/>
+      <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
+      <feComponentTransfer in="specular_layer" result="specular_faded">
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feBlend in="specular_saturated" in2="displaced" mode="normal" result="withSaturation"/>
+      <feBlend in="specular_faded" in2="withSaturation" mode="normal"/>
+    </filter>
+  </defs>
+</svg>
   <!-- 卡包弹窗（完整内容） -->
 <div class="modal-backdrop" id="cardModal">
     <div class="cardpack-sheet">
@@ -539,7 +607,7 @@ button:active {
     </div>
     <div class="mirror-source-list">
       <button class="mirror-source-item" data-source="https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">cdn.gh-proxy.org</button>
-      <button class="mirror-source-item" data-source="https://ghm.078465.xyz/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghm.078465.xyz</button>
+      <button class="mirror-source-item" data-source="https://ghm.078465.xyz/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghm.078465.xyz<i style="color: #0377f7;">[推荐]</i></button>
       <button class="mirror-source-item" data-source="https://github.tbap.top/https://github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/">github.tbap.top<i style="color: #0377f7;">[推荐]</i></button>
       <button class="mirror-source-item" data-source="https://ghproxy.net/https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">ghproxy.net</button>
       <button class="mirror-source-item" data-source="https://raw.githubusercontent.com/naiwa-web/naiwa-web.github.io/refs/heads/main/">GitHub raw (CORS)<i style="color: #ff0000;">[无加速]</i></button>
@@ -552,7 +620,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.4.3hotfix5</i>
+      <i>v0.4.5</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -1471,10 +1539,201 @@ function onPointerMove(e) {
     getValue() { return state.value; }
   };
 }
+let buttonGlassAnimId = null;
+let buttonGlassSpring = new Spring(0.4, 100, 10);
+let buttonGlassActive = false;
+
+function initButtonLiquidGlass() {
+  const sampleScale = 1.0; // 采样扩大倍数
+
+  const filterCircle = document.getElementById('buttonLiquidFilter');
+  const filterPill = document.getElementById('buttonLiquidFilterPill');
+  if (!filterCircle || !filterPill) return;
+
+  const circleConfig = {
+    thumbWidth: 72 * sampleScale,
+    thumbHeight: 72 * sampleScale,
+    thumbRadius: 36 * sampleScale,
+    bezelWidth: 32 * sampleScale,
+    glassThickness: 60 * sampleScale,
+    refractiveIndex: 1.5
+  };
+
+  const pillConfig = {
+    thumbWidth: 112 * sampleScale,
+    thumbHeight: 72 * sampleScale,
+    thumbRadius: 36 * sampleScale,
+    bezelWidth: 32 * sampleScale,
+    glassThickness: 60 * sampleScale,
+    refractiveIndex: 1.5
+  };
+
+  generateFilterMaps(filterCircle, circleConfig);
+  generateFilterMaps(filterPill, pillConfig);
+  startButtonGlassAnim();
+}
+
+function generateFilterMaps(filterEl, config) {
+  const displacementImg = filterEl.querySelector("feImage[result='displacement_map']");
+  const specularImg = filterEl.querySelector("feImage[result='specular_layer']");
+
+  // 设置 feImage 的尺寸，必须与 config.thumbWidth/thumbHeight 一致
+  displacementImg.setAttribute('width', config.thumbWidth);
+  displacementImg.setAttribute('height', config.thumbHeight);
+  specularImg.setAttribute('width', config.thumbWidth);
+  specularImg.setAttribute('height', config.thumbHeight);
+
+  const pre = calculateDisplacementMap1D(
+    config.glassThickness, config.bezelWidth,
+    SurfaceEquations.convex_squircle, config.refractiveIndex
+  );
+  const maxDisp = Math.max(...pre.map(Math.abs));
+  const dispData = calculateDisplacementMap2D(
+    config.thumbWidth, config.thumbHeight,
+    config.thumbWidth, config.thumbHeight,
+    config.thumbRadius, config.bezelWidth,
+    maxDisp || 1, pre
+  );
+  const specData = calculateSpecularHighlight(
+    config.thumbWidth, config.thumbHeight,
+    config.thumbRadius, config.bezelWidth
+  );
+  displacementImg.setAttribute('href', imageDataToDataURL(dispData));
+  specularImg.setAttribute('href', imageDataToDataURL(specData));
+}
+
+function startButtonGlassAnim() {
+  if (buttonGlassAnimId) return;
+  function loop() {
+    const dt = Math.min(0.032, 1 / 60);
+    buttonGlassSpring.setTarget(buttonGlassActive ? 0.9 : 0.4);
+    const scaleRatio = buttonGlassSpring.update(dt);
+
+    const filterCircle = document.getElementById('buttonLiquidFilter');
+    const filterPill = document.getElementById('buttonLiquidFilterPill');
+    if (filterCircle) {
+      const dispMap = filterCircle.querySelector('feDisplacementMap');
+      dispMap.setAttribute('scale', 114 * scaleRatio);
+    }
+    if (filterPill) {
+      const dispMap = filterPill.querySelector('feDisplacementMap');
+      dispMap.setAttribute('scale', 114 * scaleRatio);
+    }
+
+    if (!buttonGlassSpring.isSettled() || buttonGlassActive) {
+      buttonGlassAnimId = requestAnimationFrame(loop);
+    } else {
+      buttonGlassAnimId = null;
+    }
+  }
+  buttonGlassAnimId = requestAnimationFrame(loop);
+}
+
+function destroyButtonLiquidGlass() {
+  if (buttonGlassAnimId) {
+    cancelAnimationFrame(buttonGlassAnimId);
+    buttonGlassAnimId = null;
+  }
+}
+
+
 
 // ==================== 业务逻辑 ====================
 const viewportContainer = document.getElementById('viewport-container');
 const video = document.getElementById('mainVideo');
+// ===== 倒放模式（最终修复版：无闪烁、自动退出、可再次倒放） =====
+let rewindMode = false;          // 是否处于倒放模式
+let isReversePlaying = false;    // 当前显示的是否是 reverseVideo
+let originalVideoSrc = '';
+let reverseVideoSrc = '';
+let pendingSwitch = false;       // 防止切换冲突
+let isExiting = false;           // 防止退出流程重复触发
+
+const btnStopRewind = document.getElementById('btnStopRewind');
+const bottomUi = document.getElementById('bottomUi');
+const mainVideo = document.getElementById('mainVideo');
+const reverseVideo = document.getElementById('reverseVideo');
+
+// 确保倒放视频不循环
+reverseVideo.loop = false;
+
+
+
+function getReverseSrc(originalSrc) {
+  const clean = originalSrc.split('?')[0];
+  return clean.replace(/\.mp4$/, '-reverse.mp4');
+}
+
+function canRewind() {
+  const filename = mainVideo.src.split('/').pop().split('?')[0];
+  return rewindableVideos.has(filename);
+}
+
+// 切换到 reverseVideo 并开始倒放
+function switchToReverse() {
+  if (pendingSwitch || isExiting) return;
+  pendingSwitch = true;
+  mainVideo.pause();
+  const origTime = mainVideo.currentTime;
+  reverseVideo.src = reverseVideoSrc;
+  reverseVideo.className = mainVideo.className;
+  reverseVideo.load();
+
+  reverseVideo.addEventListener('loadedmetadata', function onMeta() {
+    reverseVideo.removeEventListener('loadedmetadata', onMeta);
+    reverseVideo.currentTime = reverseVideo.duration - origTime;
+    reverseVideo.muted = false;
+    reverseVideo.play().catch(() => { pendingSwitch = false; });
+  }, { once: true });
+
+  reverseVideo.addEventListener('playing', function onPlaying() {
+  reverseVideo.removeEventListener('playing', onPlaying);
+  // 先显示倒放视频，再隐藏主视频
+  reverseVideo.style.display = 'block';
+  mainVideo.style.display = 'none';
+  isReversePlaying = true;
+  pendingSwitch = false;
+}, { once: true });
+}
+
+function switchToMainForPlay() {
+  if (pendingSwitch || isExiting) return;
+  pendingSwitch = true;
+  const reverseTime = reverseVideo.currentTime;
+  const mainTime = mainVideo.duration - reverseTime;
+
+  // 暂停 reverseVideo，但保持显示，避免空白
+  reverseVideo.pause();
+
+  // 设置主视频时间，先不显示
+  mainVideo.muted = !settings.audio;
+  mainVideo.currentTime = mainTime;
+
+  // 等待 seek 完成后，先显示主视频，再隐藏 reverseVideo
+  mainVideo.addEventListener('seeked', function onSeeked() {
+    mainVideo.removeEventListener('seeked', onSeeked);
+    mainVideo.style.display = 'block';      // 先显示主视频
+    reverseVideo.style.display = 'none';    // 再隐藏倒放视频
+    mainVideo.play().catch(() => {});
+    isReversePlaying = false;
+    pendingSwitch = false;
+  }, { once: true });
+
+  // 超时兜底：200ms 后如果 seeked 未触发，强制切换
+  setTimeout(() => {
+    if (pendingSwitch) {
+      mainVideo.addEventListener('seeked', function onSeeked() {
+      mainVideo.removeEventListener('seeked', onSeeked);
+      // 其他逻辑
+      mainVideo.style.display = 'block';
+      reverseVideo.style.display = 'none';
+      mainVideo.play().catch(() => {});
+      isReversePlaying = false;
+      pendingSwitch = false;
+      });
+    }
+  }, 200);
+}
 const btnLoop = document.getElementById('btnLoop');
 const btnOpenCard = document.getElementById('btnOpenCard');
 const cardModal = document.getElementById('cardModal');
@@ -1482,7 +1741,7 @@ const closeCard = document.getElementById('closeCard');
 const btnOpenSet = document.getElementById('btnOpenSet');
 const settingPage = document.getElementById('settingPage');
 const setBack = document.getElementById('setBack');
-const bgButtons = document.querySelectorAll('.bg-btn');
+const bgButtons = document.querySelectorAll('.bg-btn[data-bg]');
 const btnCacheAllVideos = document.getElementById('btnCacheAllVideos');
 const cacheProgressDiv = document.getElementById('cacheProgress');
 // ===== 镜像源选择弹窗控制 =====
@@ -1558,7 +1817,6 @@ function applySettings() {
   updateVideoFit();
   video.style.transform = settings.mirror ? 'scaleX(-1)' : 'scaleX(1)';
   applyBackground();
-  document.documentElement.style.setProperty('--ui-scale', settings.uiScale);
   document.documentElement.style.setProperty('--switch-scale', settings.switchScale);
   document.documentElement.style.setProperty('--ui-bg-opacity', settings.bgOpacity);
   document.documentElement.style.setProperty('--ui-bg-blur', settings.bgBlur + 'px');
@@ -1584,6 +1842,12 @@ if (btnCacheAllVideos) {
     btnCacheAllVideos.classList.remove('cache-btn-done');
   }
 }
+if (settings.experimentalGlass) {
+  initButtonLiquidGlass();
+} else {
+  destroyButtonLiquidGlass();
+}
+document.body.style.zoom = settings.uiScale;
 }
 
 // 循环按钮
@@ -1643,9 +1907,21 @@ btnOpenSet.onclick = () => {
         catch(err) { alert("浏览器不支持屏幕常亮"); settings.wake = false; saveSettings(); switchWake.setChecked(false); }
       } else { if (wakeLock) await wakeLock.release(); wakeLock = null; saveSettings(); }
     }, settings.wake);
-    switchExperimental = createLiquidGlassSwitch(document.querySelector("#wrapExperimental"), "filterExperimental", (checked) => {
-      settings.experimentalGlass = checked; document.body.classList.toggle('glass-experimental', checked); saveSettings();
-    }, settings.experimentalGlass);
+    switchExperimental = createLiquidGlassSwitch(
+  document.querySelector("#wrapExperimental"),
+  "filterExperimental",
+  (checked) => {
+    settings.experimentalGlass = checked;
+    document.body.classList.toggle('glass-experimental', checked);
+    if (checked) {
+      initButtonLiquidGlass();   // 开启折射
+    } else {
+      destroyButtonLiquidGlass(); // 关闭折射
+    }
+    saveSettings();
+  },
+  settings.experimentalGlass
+);
     switchMirrorSource = createLiquidGlassSwitch(
   document.querySelector("#wrapMirrorSource"), "filterMirrorSource",
   (checked) => {
@@ -1688,10 +1964,14 @@ switchVConsole = createLiquidGlassSwitch(
 
     // 初始化液态玻璃滑块
     sliderUiScale = createLiquidGlassSlider(
-      document.getElementById('sliderUiScale'), 'filterSliderUiScale',
-      settings.uiScale, 0.6, 1.5, 0.01,
-      (val) => { settings.uiScale = val; document.documentElement.style.setProperty('--ui-scale', val); saveSettings(); }
-    );
+  document.getElementById('sliderUiScale'), 'filterSliderUiScale',
+  settings.uiScale, 0.5, 2.0, 0.02,
+  (val) => {
+    settings.uiScale = val;
+    document.body.style.zoom = val;   // 页面缩放立即生效
+    saveSettings();
+  }
+);
     sliderSwitchScale = createLiquidGlassSlider(
       document.getElementById('sliderSwitchScale'), 'filterSliderSwitchScale',
       settings.switchScale, 0.3, 1.5, 0.01,
@@ -1952,99 +2232,7 @@ function getReverseSrc(originalSrc) {
   return originalSrc.split('?')[0].replace(/\.mp4$/, '-reverse.mp4');
 }
 
-// ===== 倒放模式（最终修复版：无闪烁、自动退出、可再次倒放） =====
-let rewindMode = false;          // 是否处于倒放模式
-let isReversePlaying = false;    // 当前显示的是否是 reverseVideo
-let originalVideoSrc = '';
-let reverseVideoSrc = '';
-let pendingSwitch = false;       // 防止切换冲突
-let isExiting = false;           // 防止退出流程重复触发
 
-const btnStopRewind = document.getElementById('btnStopRewind');
-const bottomUi = document.getElementById('bottomUi');
-const mainVideo = document.getElementById('mainVideo');
-const reverseVideo = document.getElementById('reverseVideo');
-
-// 确保倒放视频不循环
-reverseVideo.loop = false;
-
-
-
-function getReverseSrc(originalSrc) {
-  const clean = originalSrc.split('?')[0];
-  return clean.replace(/\.mp4$/, '-reverse.mp4');
-}
-
-function canRewind() {
-  const filename = mainVideo.src.split('/').pop().split('?')[0];
-  return rewindableVideos.has(filename);
-}
-
-// 切换到 reverseVideo 并开始倒放
-function switchToReverse() {
-  if (pendingSwitch || isExiting) return;
-  pendingSwitch = true;
-  mainVideo.pause();
-  const origTime = mainVideo.currentTime;
-  reverseVideo.src = reverseVideoSrc;
-  reverseVideo.className = mainVideo.className;
-  reverseVideo.load();
-
-  reverseVideo.addEventListener('loadedmetadata', function onMeta() {
-    reverseVideo.removeEventListener('loadedmetadata', onMeta);
-    reverseVideo.currentTime = reverseVideo.duration - origTime;
-    reverseVideo.muted = false;
-    reverseVideo.play().catch(() => { pendingSwitch = false; });
-  }, { once: true });
-
-  reverseVideo.addEventListener('playing', function onPlaying() {
-  reverseVideo.removeEventListener('playing', onPlaying);
-  // 先显示倒放视频，再隐藏主视频
-  reverseVideo.style.display = 'block';
-  mainVideo.style.display = 'none';
-  isReversePlaying = true;
-  pendingSwitch = false;
-}, { once: true });
-}
-
-function switchToMainForPlay() {
-  if (pendingSwitch || isExiting) return;
-  pendingSwitch = true;
-  const reverseTime = reverseVideo.currentTime;
-  const mainTime = mainVideo.duration - reverseTime;
-
-  // 暂停 reverseVideo，但保持显示，避免空白
-  reverseVideo.pause();
-
-  // 设置主视频时间，先不显示
-  mainVideo.muted = !settings.audio;
-  mainVideo.currentTime = mainTime;
-
-  // 等待 seek 完成后，先显示主视频，再隐藏 reverseVideo
-  mainVideo.addEventListener('seeked', function onSeeked() {
-    mainVideo.removeEventListener('seeked', onSeeked);
-    mainVideo.style.display = 'block';      // 先显示主视频
-    reverseVideo.style.display = 'none';    // 再隐藏倒放视频
-    mainVideo.play().catch(() => {});
-    isReversePlaying = false;
-    pendingSwitch = false;
-  }, { once: true });
-
-  // 超时兜底：200ms 后如果 seeked 未触发，强制切换
-  setTimeout(() => {
-    if (pendingSwitch) {
-      mainVideo.addEventListener('seeked', function onSeeked() {
-      mainVideo.removeEventListener('seeked', onSeeked);
-      // 其他逻辑
-      mainVideo.style.display = 'block';
-      reverseVideo.style.display = 'none';
-      mainVideo.play().catch(() => {});
-      isReversePlaying = false;
-      pendingSwitch = false;
-      });
-    }
-  }, 200);
-}
 
 
 
