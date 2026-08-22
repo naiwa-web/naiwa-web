@@ -107,7 +107,7 @@ overflow: hidden;
   padding:0 calc(28px * 1);
   border-radius:999px;
   font-size:calc(24px * 1);
-/* gap:calc(8px * 1); */
+ gap:calc(8px * 1); 
   min-height: 56px;
   flex-shrink: 0;
 /*  min-width: 112px; */
@@ -444,6 +444,7 @@ body.glass-experimental .pill-btn {
   transform: scale(0.94);
   transition: transform 0.1s;
 }
+
 </style>
 </head>
 <body>
@@ -483,10 +484,10 @@ body.glass-experimental .pill-btn {
     <!-- 胶囊滤镜（新增） -->
     <filter id="buttonLiquidFilterPill" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB">
       <feGaussianBlur in="SourceGraphic" stdDeviation="0.2" result="blurred_source"/>
-      <feImage href="" x="0" y="0" width="112" height="72" result="displacement_map" preserveAspectRatio="none"/>
+      <feImage href="" x="0" y="0" width="120" height="72" result="displacement_map" preserveAspectRatio="none"/>
       <feDisplacementMap in="blurred_source" in2="displacement_map" scale="25" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
       <feColorMatrix in="displaced" type="saturate" values="6" result="displaced_saturated"/>
-      <feImage href="" x="0" y="0" width="112" height="72" result="specular_layer" preserveAspectRatio="none"/>
+      <feImage href="" x="0" y="0" width="120" height="72" result="specular_layer" preserveAspectRatio="none"/>
       <feComposite in="displaced_saturated" in2="specular_layer" operator="in" result="specular_saturated"/>
       <feComponentTransfer in="specular_layer" result="specular_faded">
         <feFuncA type="linear" slope="0.5"/>
@@ -1560,7 +1561,7 @@ function initButtonLiquidGlass() {
   };
 
   const pillConfig = {
-    thumbWidth: 112 * sampleScale,
+    thumbWidth: 120 * sampleScale,
     thumbHeight: 72 * sampleScale,
     thumbRadius: 36 * sampleScale,
     bezelWidth: 32 * sampleScale,
