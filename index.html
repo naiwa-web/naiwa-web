@@ -552,7 +552,7 @@ button:active {
     <div class="set-header">
       <button class="backbtn" id="setBack">‹</button>
       <h2>设置</h2>
-      <i>v0.4.3hotfix2</i>
+      <i>v0.4.3hotfix5</i>
     </div>
 
     <div class="cat-title" style="margin-left:20px; margin-top:24px; font-weight:600;"><i>通用</i></div>
@@ -841,6 +841,9 @@ let preloadIndex = 0;
 const MAX_CONCURRENT_PRELOAD = 1; // 同时最多1个
 
 function startPreloadNext() {
+  if (cacheAllInProgress) {
+  return; // 一键缓存进行中，不再启动新的预加载
+  }
   while (preloadIndex < preloadList.length && document.querySelectorAll('video[data-preload]').length < MAX_CONCURRENT_PRELOAD) {
     const url = preloadList[preloadIndex];
     preloadIndex++;
@@ -1274,7 +1277,15 @@ function createLiquidGlassSwitch(containerEl, filterId, onChangeCallback, initia
   };
 }
 
-
+// 添加全局更新函数
+function updateAllSwitchFilters() {
+  const switchInstances = [switchAudio, switchPortrait, switchMirror, switchWake, switchExperimental];
+  switchInstances.forEach(sw => {
+    if (sw && typeof sw.updateFilter === 'function') {
+      sw.updateFilter();
+    }
+  });
+}
 // ==================== 液态玻璃 Slider 封装 ====================
 function createLiquidGlassSlider(containerEl, filterId, initialValue, min, max, step, onChangeCallback) {
   containerEl.innerHTML = `
@@ -1486,6 +1497,7 @@ let sliderUiScale, sliderSwitchScale, sliderBgOpacity, sliderBgBlur;
 let switchInited = false;
 let switchVConsole;       // 开关实例
 let vConsoleInstance = null;  // vConsole 实例
+let cacheAllInProgress = false; // 是否正在执行一键缓存
 
 const STORAGE_KEY = 'naifrog_settings';
 const defaultSettings = {
@@ -1493,12 +1505,12 @@ const defaultSettings = {
   uiScale: 1, switchScale: 1, bgOpacity: 0.55, bgBlur: 12,
   experimentalGlass: false, backgroundWhite: false, bgSaturate: 1,
   bgInnerShadow: 0.2,
-  switchRefractionBoost: 1.5,
+  switchRefractionBoost: 0.6,
   switchBlur: 0.2,
   switchSaturation: 6,
   mirrorSource: 'https://cdn.gh-proxy.org/https:/github.com/naiwa-web/naiwa-web.github.io/raw/refs/heads/main/',  // 默认第一个源
   useMirror: false,
-  preload: true,
+  preload: false,
   vConsoleEnabled: false,   // 调试面板开关
   cacheDone: false,   // 视频是否已全部缓存
 };
@@ -1677,22 +1689,22 @@ switchVConsole = createLiquidGlassSwitch(
     // 初始化液态玻璃滑块
     sliderUiScale = createLiquidGlassSlider(
       document.getElementById('sliderUiScale'), 'filterSliderUiScale',
-      settings.uiScale, 0.6, 1.5, 0.1,
+      settings.uiScale, 0.6, 1.5, 0.01,
       (val) => { settings.uiScale = val; document.documentElement.style.setProperty('--ui-scale', val); saveSettings(); }
     );
     sliderSwitchScale = createLiquidGlassSlider(
       document.getElementById('sliderSwitchScale'), 'filterSliderSwitchScale',
-      settings.switchScale, 0.6, 1.5, 0.1,
+      settings.switchScale, 0.3, 1.5, 0.01,
       (val) => { settings.switchScale = val; document.documentElement.style.setProperty('--switch-scale', val); saveSettings(); }
     );
     sliderBgOpacity = createLiquidGlassSlider(
       document.getElementById('sliderBgOpacity'), 'filterSliderBgOpacity',
-      settings.bgOpacity, 0.1, 0.9, 0.05,
+      settings.bgOpacity, 0.1, 0.9, 0.01,
       (val) => { settings.bgOpacity = val; document.documentElement.style.setProperty('--ui-bg-opacity', val); saveSettings(); }
     );
     sliderBgBlur = createLiquidGlassSlider(
       document.getElementById('sliderBgBlur'), 'filterSliderBgBlur',
-      settings.bgBlur, 0, 30, 1,
+      settings.bgBlur, 0, 30, 0.01,
       (val) => { settings.bgBlur = val; document.documentElement.style.setProperty('--ui-bg-blur', val + 'px'); saveSettings(); }
     );
 
@@ -1700,27 +1712,27 @@ switchVConsole = createLiquidGlassSwitch(
   }
   sliderBgSaturate = createLiquidGlassSlider(
   document.getElementById('sliderBgSaturate'), 'filterSliderBgSaturate',
-  settings.bgSaturate, 0, 3, 0.1,
+  settings.bgSaturate, 0, 3, 0.01,
   (val) => { settings.bgSaturate = val; document.documentElement.style.setProperty('--ui-bg-saturate', val); saveSettings(); }
 );
 sliderBgInnerShadow = createLiquidGlassSlider(
   document.getElementById('sliderBgInnerShadow'), 'filterSliderBgInnerShadow',
-  settings.bgInnerShadow, 0, 1, 0.05,
+  settings.bgInnerShadow, 0, 1, 0.01,
   (val) => { settings.bgInnerShadow = val; document.documentElement.style.setProperty('--ui-bg-inner-shadow', val); saveSettings(); }
 );
 sliderSwitchRefraction = createLiquidGlassSlider(
   document.getElementById('sliderSwitchRefraction'), 'filterSliderSwitchRefraction',
-  settings.switchRefractionBoost, 0.5, 3, 0.1,
+  settings.switchRefractionBoost, 0.5, 3, 0.01,
   (val) => { settings.switchRefractionBoost = val; saveSettings(); }
 );
 sliderSwitchBlur = createLiquidGlassSlider(
   document.getElementById('sliderSwitchBlur'), 'filterSliderSwitchBlur',
-  settings.switchBlur, 0, 2, 0.05,
+  settings.switchBlur, 0, 2, 0.01,
   (val) => { settings.switchBlur = val; saveSettings(); updateAllSwitchFilters(); }
 );
 sliderSwitchSaturation = createLiquidGlassSlider(
   document.getElementById('sliderSwitchSaturation'), 'filterSliderSwitchSaturation',
-  settings.switchSaturation, 0, 10, 0.5,
+  settings.switchSaturation, 0, 10, 0.01,
   (val) => { settings.switchSaturation = val; saveSettings(); updateAllSwitchFilters(); }
 );
 };
@@ -2021,12 +2033,15 @@ function switchToMainForPlay() {
   // 超时兜底：200ms 后如果 seeked 未触发，强制切换
   setTimeout(() => {
     if (pendingSwitch) {
+      mainVideo.addEventListener('seeked', function onSeeked() {
       mainVideo.removeEventListener('seeked', onSeeked);
+      // 其他逻辑
       mainVideo.style.display = 'block';
       reverseVideo.style.display = 'none';
       mainVideo.play().catch(() => {});
       isReversePlaying = false;
       pendingSwitch = false;
+      });
     }
   }, 200);
 }
@@ -2259,6 +2274,7 @@ btnCacheAllVideos.addEventListener('click', async () => {
     return;
   }
 
+  cacheAllInProgress = true;
   // 收集视频列表（倒放优先）
   const normalVideos = [];
   const reverseVideos = [];
@@ -2362,6 +2378,7 @@ btnCacheAllVideos.addEventListener('click', async () => {
     btnCacheAllVideos.textContent = `失败 ${failed} 个，重试`;
     btnCacheAllVideos.classList.remove('cache-btn-done');
   }
+  cacheAllInProgress = false;
   cacheProgressDiv.innerHTML = '';
   cacheProgressDiv.style.display = 'none';
 });
