@@ -2313,9 +2313,15 @@ btnCacheAllVideos.addEventListener('click', async () => {
         if (xhr.status === 200) {
           try {
             const blob = xhr.response;
-            const response = new Response(blob, { status: 200, headers: { 'Content-Type': 'video/mp4' } });
-            const cache = await caches.open(cacheName);
-            await cache.put(url, response);
+            const response = new Response(blob, {
+  status: 200,
+  headers: {
+    'Content-Type': 'video/mp4',
+    'Accept-Ranges': 'bytes',
+    'Content-Length': blob.size
+  }
+});
+await cache.put(url, response);
             resolve();
           } catch (err) {
             reject(err);
@@ -2359,6 +2365,14 @@ btnCacheAllVideos.addEventListener('click', async () => {
   cacheProgressDiv.innerHTML = '';
   cacheProgressDiv.style.display = 'none';
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('✅ Service Worker 注册成功', reg.scope))
+      .catch(err => console.error('❌ Service Worker 注册失败:', err));
+  });
+}
 </script>
 </body>
 </html>
